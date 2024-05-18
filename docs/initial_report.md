@@ -63,34 +63,71 @@ To ensure the quality of our software, we implement the following measures:
 - **Logging:** We utilize `uber-go/zap` as our logging library.
 
 
-# Support Library
+# Support Libraries
 
-- **Gossip:** https://pkg.go.dev/github.com/zemnmez/cockroach/gossip
-- **SHA256 Encryption:** https://pkg.go.dev/crypto/sha256
-- **Config file parser:** https://github.com/graniticio/inifile
-- **API:** https://grpc.io/
-- **Code Generation:** [protoc-gen-go](https://pkg.go.dev/github.com/golang/protobuf/protoc-gen-go)
-- **P2P:** https://libp2p.io/
-- **Testing:** https://pkg.go.dev/testing
-- **Build:** https://go.dev/blog/using-go-modules & https://taskfile.dev/
-- **Documentation:** https://github.com/amalmadhu06/godoc-example
+### Gossip
+- **URL:** [github.com/zemnmez/cockroach/gossip](https://pkg.go.dev/github.com/zemnmez/cockroach/gossip)
+- **Description:** A library for implementing the gossip protocol, which allows nodes to efficiently share information in a decentralized network. It is designed to help build scalable, fault-tolerant distributed systems.
 
-# License: 
+### SHA256 Encryption
+- **URL:** [crypto/sha256](https://pkg.go.dev/crypto/sha256)
+- **Description:** The `crypto/sha256` package in Go provides implementations of the SHA-256 cryptographic hash function, which is widely used for secure data hashing and verification.
+
+### Config File Parser
+- **URL:** [github.com/graniticio/inifile](https://github.com/graniticio/inifile)
+- **Description:** A library for parsing INI configuration files, allowing easy reading and writing of configuration settings. INI files are simple text files with a structure that is easy to parse.
+
+### API
+- **URL:** [gRPC](https://grpc.io/)
+- **Description:** gRPC is a high-performance, open-source framework for building remote procedure call (RPC) APIs. It uses HTTP/2 for transport, Protocol Buffers as the interface description language, and supports features like bidirectional streaming and strong typing.
+
+### Code Generation
+- **URL:** [protoc-gen-go](https://pkg.go.dev/google.golang.org/protobuf/cmd/protoc-gen-go)
+- **Description:** The `protoc-gen-go` plugin for Protocol Buffers generates Go source files from `.proto` definitions. This facilitates the use of Protocol Buffers in Go applications by automating the creation of data structures and serialization code.
+
+### P2P
+- **URL:** [libp2p](https://libp2p.io/)
+- **Description:** libp2p is a modular network stack that enables the development of peer-to-peer (P2P) applications. It provides tools for creating decentralized networks, handling peer discovery, and managing secure communications.
+
+### Testing
+- **URL:** [testing](https://pkg.go.dev/testing)
+- **Description:** The `testing` package in Go provides support for automated testing of Go code. It includes tools for writing and running tests, benchmarks, and example code to ensure code correctness and performance.
+
+### Build
+- **URL:** [Go Modules](https://go.dev/blog/using-go-modules) & [Taskfile](https://taskfile.dev/)
+    - **Go Modules:** The official dependency management system for Go, introduced in Go 1.11. It simplifies dependency management and versioning for Go projects.
+    - **Taskfile:** A task runner for Go projects that allows defining tasks in a YAML file. It helps automate development workflows, such as building, testing, and
+
+
+# License
+
 ### MIT
-Reasons:
-+ Permissive: Allows unrestricted use, modification, and distribution for any purpose.
-+ Simple: Clear and concise terms make it easy to understand and comply with.
-+ Compatible: Works well with other open-source licenses, facilitating collaboration and derivative works.
-+ Minimal restrictions: Encourages collaboration by imposing few limitations on usage.
-+ Legal clarity: Provides clear legal protection for creators and users of the code.
-Encourages commercial use: Attractive to businesses as it allows incorporation into proprietary products without open-sourcing.
 
+**Reasons:**
+- **Permissive:** Allows unrestricted use, modification, and distribution for any purpose.
+- **Simple:** Clear and concise terms make it easy to understand and comply with.
+- **Compatible:** Works well with other open-source licenses, facilitating collaboration and derivative works.
+- **Minimal restrictions:** Encourages collaboration by imposing few limitations on usage.
+- **Legal clarity:** Provides clear legal protection for creators and users of the code.
+- **Encourages commercial use:** Attractive to businesses as it allows incorporation into proprietary products without open-sourcing.
 
-# Team Expertise:
+# Team Expertise
 
-- Duc Nguyen: Software development, current go back-end developer
-- Trung Nguyen: Software development, Fundamental Blockchain systems and security
+- **Duc Nguyen**
+    - **Skills:** Experience in Software Development and Current Go back-end developer
 
-# Planned workload distribution:
-- Duc Nguyen: In charge of Gossip API, Security Measures and Testing of GOSSIP API
-- Trung Nguyen: In charge of designing and implementing GOSSIP P2P architecture and later QA of the P2P implementation.
+- **Trung Nguyen**
+    - **Skills:** Experience in Software Development and Understanding of blockchain systems and security,
+
+# Planned Workload Distribution
+
+- **Duc Nguyen**
+    - **Responsibilities:**
+        - Development of the Gossip API
+        - Implementing security measures
+        - Testing of the Gossip API
+
+- **Trung Nguyen**
+    - **Responsibilities:**
+        - Designing and implementing the Gossip P2P architecture
+        - Quality assurance (QA) of the P2P implementation
