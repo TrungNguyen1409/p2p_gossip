@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"context"
+	"fmt"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -10,6 +11,8 @@ type Server struct {
 }
 
 func (s Server) Announce(context.Context, *GossipAnnounce) (*emptypb.Empty, error) {
+	fmt.Println("Received announce request")
+
 	return &emptypb.Empty{}, nil
 }
 

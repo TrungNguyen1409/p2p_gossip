@@ -21,7 +21,7 @@ gossip.proto
 
 ### Run server
 ```bash
-go run cmd/gossipServer.go 
+go run cmd/server.go 
 ```
 
 ### List and describe method

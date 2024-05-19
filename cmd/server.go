@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/internal/gossip"
+	gossip2 "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/api/gossip"
 	"google.golang.org/grpc/reflection"
 	"log"
 	"net"
@@ -27,18 +27,18 @@ func main() {
 		log.Fatalf("Can not listen %v", err)
 	}
 
-	gossipServer := &gossip.Server{}
+	gossipServer := &gossip2.Server{}
 
 	grpcServer := grpc.NewServer()
 
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
 
-	gossip.RegisterGossipServiceServer(grpcServer, gossipServer)
+	gossip2.RegisterGossipServiceServer(grpcServer, gossipServer)
+
+	fmt.Printf("Server started listenting on %s\n", apiAddress)
 
 	if err = grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Can not serve %v", err)
 	}
-
-	fmt.Printf("Server started listenting on %s\n", apiAddress)
 }
