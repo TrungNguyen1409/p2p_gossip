@@ -1,38 +1,34 @@
-package main
+package tests
 
 import (
 	"fmt"
 	"github.com/robfig/config"
+	"github.com/stretchr/testify/require"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/api/api"
 	"log"
 	"net"
 	"sync"
+	"testing"
 )
 
-func main() {
-	configFile, readErr := config.ReadDefault("configs/config.ini")
-	if readErr != nil {
-		log.Fatalf("Can not find config.ini %v", readErr)
-	}
+func Start(t *testing.T) {
+	configFile, readErr := config.ReadDefault("../configs/config.ini")
+	require.NoError(t, readErr)
 
-	apiAddress, parseErr := configFile.String("gossip", "api_address")
-	if parseErr != nil {
-		log.Fatalf("Can not read from config.ini %v", parseErr)
-	}
+	apiAddress, parseErr := configFile.String("gossip", "api_address_test")
+	require.NoError(t, parseErr)
 
 	var wg sync.WaitGroup
 
-	startServer(apiAddress, &wg)
+	go startServer(t, apiAddress, &wg)
 
 	// Wait for all goroutines to finish
 	wg.Wait()
 }
 
-func startServer(apiAddress string, wg *sync.WaitGroup) {
+func startServer(t *testing.T, apiAddress string, wg *sync.WaitGroup) {
 	listener, listenerErr := net.Listen("tcp", apiAddress)
-	if listenerErr != nil {
-		log.Fatalf("Error starting TCP server: %v", listenerErr)
-	}
+	require.NoError(t, listenerErr)
 
 	defer func(listener net.Listener) {
 		err := listener.Close()
@@ -53,7 +49,7 @@ func startServer(apiAddress string, wg *sync.WaitGroup) {
 		// Increment the WaitGroup counter
 		wg.Add(1)
 
-		// handle this request in a different goroutine
+		// Handle this request in a different goroutine
 		go func(conn net.Conn) {
 			defer wg.Done() // Decrement the counter when the goroutine completes
 			api.GossipHandler(conn)
