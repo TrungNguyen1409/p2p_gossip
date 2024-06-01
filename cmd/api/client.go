@@ -1,15 +1,11 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/api/gossip"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
-	"time"
-
-	"google.golang.org/grpc"
 )
 
 func main() {
@@ -40,33 +36,4 @@ func main() {
 
 	}(conn)
 
-	client := gossip.NewGossipServiceClient(conn)
-
-	if announce {
-		sendAnnounce(client)
-	}
-
-	if notify {
-		// Implement notify handling
-	}
-}
-
-func sendAnnounce(client gossip.GossipServiceClient) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	message := &gossip.GossipAnnounce{
-		Size:           1,
-		GossipAnnounce: 2,
-		Ttl:            3,
-		Reserved:       4,
-		DataType:       5,
-		Data:           []byte("data"),
-	}
-
-	_, err := client.Announce(ctx, message)
-
-	if err != nil {
-		log.Fatalf("Announce failed: %v", err)
-	}
 }

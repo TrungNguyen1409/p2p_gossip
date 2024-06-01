@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/robfig/config"
 	"github.com/stretchr/testify/require"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/api/api"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/protocols/api"
 	"log"
 	"net"
 	"sync"
