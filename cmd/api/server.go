@@ -1,34 +1,31 @@
-package main
+package api
 
 import (
 	"fmt"
-	"github.com/robfig/config"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/protocols/api"
 	"log"
 	"net"
 	"sync"
 )
 
-func main() {
-	configFile, readErr := config.ReadDefault("configs/config.ini")
-	if readErr != nil {
-		log.Fatalf("Can not find config.ini %v", readErr)
-	}
+type Server struct {
+	apiAddress string
+}
 
-	apiAddress, parseErr := configFile.String("gossip", "api_address")
-	if parseErr != nil {
-		log.Fatalf("Can not read from config.ini %v", parseErr)
-	}
+func NewServer(apiAddress string) *Server {
+	return &Server{apiAddress: apiAddress}
+}
 
+func (s *Server) Start() {
 	var wg sync.WaitGroup
 
-	startServer(apiAddress, &wg)
+	listen(s.apiAddress, &wg)
 
 	// Wait for all goroutines to finish
 	wg.Wait()
 }
 
-func startServer(apiAddress string, wg *sync.WaitGroup) {
+func listen(apiAddress string, wg *sync.WaitGroup) {
 	listener, listenerErr := net.Listen("tcp", apiAddress)
 	if listenerErr != nil {
 		log.Fatalf("Error starting TCP server: %v", listenerErr)
@@ -41,7 +38,7 @@ func startServer(apiAddress string, wg *sync.WaitGroup) {
 		}
 	}(listener)
 
-	fmt.Println("Server is listening on", listener.Addr())
+	fmt.Println("API Server is listening on", listener.Addr())
 
 	for {
 		conn, err := listener.Accept()

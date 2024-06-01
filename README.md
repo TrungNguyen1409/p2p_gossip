@@ -3,25 +3,9 @@
 - Thua Duc Nguyen
 - Duc Trung Nguyen
 
-## Init proto
-
-Inside internal folder:
-
-```bash
-protoc
---go_out=gossip \
---go_opt=paths=source_relative \
---go-grpc_out=gossip \
---go-grpc_opt=paths=source_relative \
-gossip.proto 
-```
-
-## Usage
-<https://github.com/grpc/grpc-go/blob/master/Documentation/server-reflection-tutorial.md>
-
 ### Run server
 ```bash
-go run cmd/server.go 
+go run cmd/main.go 
 ```
 
 ### List and describe method
