@@ -6,27 +6,6 @@ import (
 	"net"
 )
 
-type GossipMessage struct {
-	Type    string
-	From    string
-	Payload []byte
-}
-
-func (msg *GossipMessage) Reset() {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (msg *GossipMessage) String() string {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (msg *GossipMessage) ProtoMessage() {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (msg *GossipMessage) Serialize() ([]byte, error) {
 	return proto.Marshal(msg)
 }

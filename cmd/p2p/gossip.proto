@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package p2p;
+
+option go_package = "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/cmd/p2p";
+
+// GossipMessage defines a message for the gossip protocol.
+message GossipMessage {
+  string type = 1;
+  string from =  2;
+  bytes payload = 3;
+}
