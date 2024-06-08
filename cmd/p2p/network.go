@@ -43,7 +43,6 @@ func SendMessage(address string, msg *GossipMessage) error {
 	return err
 }
 
-// p2pAddress instead of + port
 // ListenForMessages listens for incoming messages from peers
 func ListenForMessages(p2pAddress string, msgHandler func(*GossipMessage), wg *sync.WaitGroup) {
 	ln, err := net.Listen("tcp", p2pAddress)
@@ -66,7 +65,8 @@ func ListenForMessages(p2pAddress string, msgHandler func(*GossipMessage), wg *s
 			log.Println("Failed to accept connection:", err)
 			continue
 		}
-
+		// Increment the WaitGroup counter
+		wg.Add(1)
 		go handleConnection(conn, msgHandler)
 	}
 }

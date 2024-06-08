@@ -34,6 +34,7 @@ func (node *GossipNode) Start() {
 	wg.Wait()
 }
 
+// where message got handled based on type
 func (node *GossipNode) handleMessage(msg *GossipMessage) {
 	if _, seen := node.messageCache[string(msg.Payload)]; seen {
 		return // already seen this message
