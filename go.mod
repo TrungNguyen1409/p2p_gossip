@@ -3,7 +3,9 @@ module gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7
 go 1.22.2
 
 require (
+	github.com/golang/protobuf v1.5.4
 	github.com/robfig/config v0.0.0-20141207224736-0f78529c8c7e
+	github.com/stretchr/testify v1.9.0
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.34.1
 )
@@ -11,7 +13,6 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
