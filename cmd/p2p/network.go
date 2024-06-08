@@ -1,9 +1,11 @@
 package p2p
 
 import (
+	"fmt"
 	"github.com/golang/protobuf/proto"
 	"log"
 	"net"
+	"sync"
 )
 
 func (msg *GossipMessage) Serialize() ([]byte, error) {
@@ -43,11 +45,14 @@ func SendMessage(address string, msg *GossipMessage) error {
 
 // p2pAddress instead of + port
 // ListenForMessages listens for incoming messages from peers
-func ListenForMessages(port string, msgHandler func(*GossipMessage)) {
-	ln, err := net.Listen("tcp", ":"+port)
+func ListenForMessages(p2pAddress string, msgHandler func(*GossipMessage), wg *sync.WaitGroup) {
+	ln, err := net.Listen("tcp", p2pAddress)
 	if err != nil {
 		log.Fatalf("Failed to start listener: %v", err)
 	}
+
+	fmt.Println("P2P Server is listening on", ln.Addr())
+
 	defer func(ln net.Listener) {
 		err := ln.Close()
 		if err != nil {
