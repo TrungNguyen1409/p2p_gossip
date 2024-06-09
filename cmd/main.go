@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/robfig/config"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/cmd/api"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/cmd/p2p"
@@ -27,7 +26,6 @@ func NewServer() *Server {
 	}
 
 	p2pAddress, parseErr := configFile.String("gossip", "p2p_address")
-	fmt.Print(p2pAddress)
 	if parseErr != nil {
 		log.Fatalf("Can not read from config.ini %v", parseErr)
 	}
@@ -49,10 +47,8 @@ func (s *Server) Start() {
 	wg.Add(2)
 
 	go s.apiServer.Start()
-	fmt.Print("starting api server")
 
 	go s.p2pServer.Start()
-	fmt.Print("starting p2p server")
 	wg.Wait()
 }
 

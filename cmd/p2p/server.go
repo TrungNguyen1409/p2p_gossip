@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
@@ -39,6 +40,7 @@ func (node *GossipNode) Start() {
 // where message got handled based on type
 func (node *GossipNode) handleMessage(msg *pb.GossipMessage) {
 	if _, seen := node.messageCache[string(msg.Payload)]; seen {
+		fmt.Println("duplicated message")
 		return // already seen this message
 	}
 

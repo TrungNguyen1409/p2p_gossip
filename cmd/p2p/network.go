@@ -77,9 +77,12 @@ func HandleConnection(conn net.Conn, msgHandler func(*pb.GossipMessage)) {
 	defer func(conn net.Conn) {
 		err := conn.Close()
 		if err != nil {
-
+			log.Printf("Error closing connection: %v\n", err)
+			fmt.Printf("Connection closed!\n----------------------------------\n")
 		}
 	}(conn)
+
+	fmt.Printf("\n----------------------------------\nOpen connection with %s\n", conn.RemoteAddr())
 
 	buf := make([]byte, 4096)
 	n, err := conn.Read(buf)
