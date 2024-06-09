@@ -3,6 +3,8 @@ package p2p
 import (
 	"log"
 	"sync"
+
+	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
 )
 
 type GossipNode struct {
@@ -28,14 +30,14 @@ func NewGossipNode(p2pAddress string, initialPeers []string) *GossipNode {
 func (node *GossipNode) Start() {
 	var wg sync.WaitGroup
 
-	ListenForMessages(node.p2pAddress, node.handleMessage, &wg)
+	listen(node.p2pAddress, node.handleMessage, &wg)
 
 	// Wait for all goroutines to finish
 	wg.Wait()
 }
 
 // where message got handled based on type
-func (node *GossipNode) handleMessage(msg *GossipMessage) {
+func (node *GossipNode) handleMessage(msg *pb.GossipMessage) {
 	if _, seen := node.messageCache[string(msg.Payload)]; seen {
 		return // already seen this message
 	}
@@ -48,7 +50,7 @@ func (node *GossipNode) handleMessage(msg *GossipMessage) {
 	node.peersMutex.RLock()
 	defer node.peersMutex.RUnlock()
 	for peer := range node.peers {
-		if err := SendMessage(peer, msg); err != nil {
+		if err := send(peer, msg); err != nil {
 			log.Printf("Failed to send message to %s: %v", peer, err)
 		}
 	}

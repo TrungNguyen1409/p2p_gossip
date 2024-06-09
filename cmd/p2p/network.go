@@ -6,14 +6,16 @@ import (
 	"log"
 	"net"
 	"sync"
+
+	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
 )
 
-func (msg *GossipMessage) Serialize() ([]byte, error) {
+func Serialize(msg *pb.GossipMessage) ([]byte, error) {
 	return proto.Marshal(msg)
 }
 
-func Deserialize(data []byte) (*GossipMessage, error) {
-	var msg GossipMessage
+func Deserialize(data []byte) (*pb.GossipMessage, error) {
+	var msg pb.GossipMessage
 	err := proto.Unmarshal(data, &msg)
 	if err != nil {
 		return nil, err
@@ -22,7 +24,7 @@ func Deserialize(data []byte) (*GossipMessage, error) {
 }
 
 // SendMessage sends a message to a peer
-func SendMessage(address string, msg *GossipMessage) error {
+func send(address string, msg *pb.GossipMessage) error {
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		return err
@@ -34,7 +36,7 @@ func SendMessage(address string, msg *GossipMessage) error {
 		}
 	}(conn)
 
-	data, err := msg.Serialize()
+	data, err := Serialize(msg)
 	if err != nil {
 		return err
 	}
@@ -44,7 +46,7 @@ func SendMessage(address string, msg *GossipMessage) error {
 }
 
 // ListenForMessages listens for incoming messages from peers
-func ListenForMessages(p2pAddress string, msgHandler func(*GossipMessage), wg *sync.WaitGroup) {
+func listen(p2pAddress string, msgHandler func(*pb.GossipMessage), wg *sync.WaitGroup) {
 	ln, err := net.Listen("tcp", p2pAddress)
 	if err != nil {
 		log.Fatalf("Failed to start listener: %v", err)
@@ -67,11 +69,11 @@ func ListenForMessages(p2pAddress string, msgHandler func(*GossipMessage), wg *s
 		}
 		// Increment the WaitGroup counter
 		wg.Add(1)
-		go handleConnection(conn, msgHandler)
+		go HandleConnection(conn, msgHandler)
 	}
 }
 
-func handleConnection(conn net.Conn, msgHandler func(*GossipMessage)) {
+func HandleConnection(conn net.Conn, msgHandler func(*pb.GossipMessage)) {
 	defer func(conn net.Conn) {
 		err := conn.Close()
 		if err != nil {
