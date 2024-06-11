@@ -8,8 +8,8 @@ import (
 	"net"
 )
 
-// GossipHandler handles incoming connections and dispatches messages based on type
-func GossipHandler(conn net.Conn) {
+// Handler handles incoming connections and dispatches messages based on type
+func Handler(conn net.Conn, channel chan AnnounceMsg) {
 	defer func() {
 		if err := conn.Close(); err != nil {
 			log.Printf("Error closing connection: %v\n", err)
@@ -52,7 +52,7 @@ func GossipHandler(conn net.Conn) {
 	}
 
 	// Read the message type
-	if err := binary.Read(reader, binary.BigEndian, &messageType); err != nil {
+	if err = binary.Read(reader, binary.BigEndian, &messageType); err != nil {
 		log.Printf("Error reading message type: %v\n", err)
 		return
 	}
@@ -60,7 +60,7 @@ func GossipHandler(conn net.Conn) {
 	// Handle message based on type
 	switch messageType {
 	case GossipAnnounce:
-		if err = AnnounceHandler(conn, reader); err != nil {
+		if err = AnnounceHandler(conn, reader, channel); err != nil {
 			log.Printf("Error handling ANNOUNCE message: %v\n", err)
 		}
 	case GossipNotify:
@@ -81,10 +81,17 @@ func GossipHandler(conn net.Conn) {
 }
 
 // AnnounceHandler handles AnnounceMsg
-func AnnounceHandler(conn net.Conn, reader *bytes.Reader) error {
+func AnnounceHandler(conn net.Conn, reader *bytes.Reader, channel chan AnnounceMsg) error {
 	var msg AnnounceMsg
 	if err := unmarshallAnnounce(reader, &msg); err != nil {
 		return fmt.Errorf("failed to unmarshal announce message: %w", err)
+	}
+
+	select {
+	// Successfully sent the message
+	case channel <- msg:
+	default:
+		return fmt.Errorf("channel is full or no receiver available")
 	}
 
 	return nil

@@ -3,11 +3,11 @@ package p2p
 import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/protocols/api"
 	"log"
 	"net"
 	"sync"
-
-	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
 )
 
 func Serialize(msg *pb.GossipMessage) ([]byte, error) {
@@ -55,15 +55,15 @@ func listen(p2pAddress string, msgHandler func(*pb.GossipMessage), wg *sync.Wait
 	fmt.Println("P2P Server is listening on", ln.Addr())
 
 	defer func(ln net.Listener) {
-		err := ln.Close()
+		err = ln.Close()
 		if err != nil {
 			log.Fatalf("Error closing TCP server: %v", err)
 		}
 	}(ln)
 
 	for {
-		conn, err := ln.Accept()
-		if err != nil {
+		conn, err1 := ln.Accept()
+		if err1 != nil {
 			log.Println("Failed to accept connection:", err)
 			continue
 		}
@@ -71,6 +71,23 @@ func listen(p2pAddress string, msgHandler func(*pb.GossipMessage), wg *sync.Wait
 		wg.Add(1)
 		go HandleConnection(conn, msgHandler)
 	}
+}
+
+func listenAnnounceMessage(announceMsgChan chan api.AnnounceMsg, wg *sync.WaitGroup) {
+	for {
+		msg, ok := <-announceMsgChan
+		if !ok {
+			// Channel is closed, exit the loop
+			fmt.Println("Channel closed, exiting loop")
+
+			// do something with the announcement message
+
+			return
+		} else {
+			fmt.Printf("P2P Server: Received a message: %+v\n", msg)
+		}
+	}
+
 }
 
 func HandleConnection(conn net.Conn, msgHandler func(*pb.GossipMessage)) {

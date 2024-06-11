@@ -9,23 +9,24 @@ import (
 )
 
 type Server struct {
-	apiAddress string
+	apiAddress      string
+	announceMsgChan chan api.AnnounceMsg
 }
 
-func NewServer(apiAddress string) *Server {
-	return &Server{apiAddress: apiAddress}
+func NewServer(apiAddress string, announceMsgChan chan api.AnnounceMsg) *Server {
+	return &Server{apiAddress: apiAddress, announceMsgChan: announceMsgChan}
 }
 
 func (s *Server) Start() {
 	var wg sync.WaitGroup
 
-	listen(s.apiAddress, &wg)
+	listen(s.apiAddress, &wg, s.announceMsgChan)
 
 	// Wait for all goroutines to finish
 	wg.Wait()
 }
 
-func listen(apiAddress string, wg *sync.WaitGroup) {
+func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan api.AnnounceMsg) {
 	listener, listenerErr := net.Listen("tcp", apiAddress)
 	if listenerErr != nil {
 		log.Fatalf("Error starting TCP server: %v", listenerErr)
@@ -53,7 +54,7 @@ func listen(apiAddress string, wg *sync.WaitGroup) {
 		// handle this request in a different goroutine
 		go func(conn net.Conn) {
 			defer wg.Done() // Decrement the counter when the goroutine completes
-			api.GossipHandler(conn)
+			api.Handler(conn, announceMsgChan)
 		}(conn)
 	}
 }

@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/protocols/api"
 	"log"
 	"sync"
 
@@ -9,13 +10,14 @@ import (
 )
 
 type GossipNode struct {
-	p2pAddress   string
-	peers        map[string]struct{}
-	peersMutex   sync.RWMutex
-	messageCache map[string]struct{}
+	p2pAddress      string
+	peers           map[string]struct{}
+	peersMutex      sync.RWMutex
+	messageCache    map[string]struct{}
+	announceMsgChan chan api.AnnounceMsg
 }
 
-func NewGossipNode(p2pAddress string, initialPeers []string) *GossipNode {
+func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan api.AnnounceMsg) *GossipNode {
 
 	peers := make(map[string]struct{})
 	for _, peer := range initialPeers {
@@ -23,17 +25,27 @@ func NewGossipNode(p2pAddress string, initialPeers []string) *GossipNode {
 	}
 
 	return &GossipNode{
-		p2pAddress:   p2pAddress,
-		peers:        peers,
-		messageCache: make(map[string]struct{})}
+		p2pAddress:      p2pAddress,
+		peers:           peers,
+		announceMsgChan: announceMsgChan,
+		messageCache:    make(map[string]struct{})}
 }
 
 func (node *GossipNode) Start() {
 	var wg sync.WaitGroup
 
-	listen(node.p2pAddress, node.handleMessage, &wg)
+	wg.Add(2)
 
-	// Wait for all goroutines to finish
+	go func() {
+		defer wg.Done()
+		listen(node.p2pAddress, node.handleMessage, &wg)
+	}()
+
+	go func() {
+		defer wg.Done()
+		listenAnnounceMessage(node.announceMsgChan, &wg)
+	}()
+
 	wg.Wait()
 }
 

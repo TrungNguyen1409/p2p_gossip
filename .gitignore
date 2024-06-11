@@ -1,5 +1,5 @@
 .idea
 .vscode
 .task
-gossip_client
-gossip_server
+client
+server

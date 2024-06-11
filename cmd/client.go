@@ -67,12 +67,6 @@ Examples:
 		fmt.Printf("Failed to connect to %s: %v\n", address, err)
 		os.Exit(1)
 	}
-	defer func(conn net.Conn) {
-		err = conn.Close()
-		if err != nil {
-
-		}
-	}(conn)
 
 	if announce {
 		sendMessage(conn, api.GossipAnnounce, createAnnounceMessage(message))
@@ -82,6 +76,13 @@ Examples:
 }
 
 func sendMessage(conn net.Conn, messageType uint16, message []byte) {
+	defer func(conn net.Conn) {
+		err := conn.Close()
+		if err != nil {
+
+		}
+	}(conn)
+
 	var writeBuffer bytes.Buffer
 
 	_ = binary.Write(&writeBuffer, binary.BigEndian, uint16(len(message)+4))

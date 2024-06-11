@@ -20,13 +20,15 @@ func Start(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	go startServer(t, apiAddress, &wg)
+	ch := make(chan api.AnnounceMsg)
+
+	go startServer(t, apiAddress, &wg, ch)
 
 	// Wait for all goroutines to finish
 	wg.Wait()
 }
 
-func startServer(t *testing.T, apiAddress string, wg *sync.WaitGroup) {
+func startServer(t *testing.T, apiAddress string, wg *sync.WaitGroup, ch chan api.AnnounceMsg) {
 	listener, listenerErr := net.Listen("tcp", apiAddress)
 	require.NoError(t, listenerErr)
 
@@ -52,7 +54,7 @@ func startServer(t *testing.T, apiAddress string, wg *sync.WaitGroup) {
 		// Handle this request in a different goroutine
 		go func(conn net.Conn) {
 			defer wg.Done() // Decrement the counter when the goroutine completes
-			api.GossipHandler(conn)
+			api.Handler(conn, ch)
 		}(conn)
 	}
 }
