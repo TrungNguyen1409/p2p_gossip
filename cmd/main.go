@@ -10,7 +10,7 @@ import (
 
 type Server struct {
 	apiServer *api.Server
-	p2pServer *p2p.Server
+	p2pServer *p2p.GossipNode
 	// channel
 }
 
@@ -31,7 +31,12 @@ func NewServer() *Server {
 	}
 
 	apiServer := api.NewServer(apiAddress)
-	p2pServer := p2p.NewServer(p2pAddress)
+	p2pServer := p2p.NewGossipNode(p2pAddress, []string{
+		"peer1.example.com:7051",
+		"peer2.example.com:7051",
+		"peer3.example.com:7051",
+	},
+	)
 
 	return &Server{apiServer: apiServer, p2pServer: p2pServer}
 
@@ -42,8 +47,8 @@ func (s *Server) Start() {
 	wg.Add(2)
 
 	go s.apiServer.Start()
-	go s.p2pServer.Start()
 
+	go s.p2pServer.Start()
 	wg.Wait()
 }
 

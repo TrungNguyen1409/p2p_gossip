@@ -3,39 +3,57 @@ package p2p
 import (
 	"fmt"
 	"log"
-	"net"
 	"sync"
+
+	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
 )
 
-type Server struct {
-	p2pAddress string
+type GossipNode struct {
+	p2pAddress   string
+	peers        map[string]struct{}
+	peersMutex   sync.RWMutex
+	messageCache map[string]struct{}
 }
 
-func NewServer(p2pAddress string) *Server {
-	return &Server{p2pAddress: p2pAddress}
+func NewGossipNode(p2pAddress string, initialPeers []string) *GossipNode {
+
+	peers := make(map[string]struct{})
+	for _, peer := range initialPeers {
+		peers[peer] = struct{}{}
+	}
+
+	return &GossipNode{
+		p2pAddress:   p2pAddress,
+		peers:        peers,
+		messageCache: make(map[string]struct{})}
 }
 
-func (s *Server) Start() {
+func (node *GossipNode) Start() {
 	var wg sync.WaitGroup
 
-	listen(s.p2pAddress, &wg)
+	listen(node.p2pAddress, node.handleMessage, &wg)
 
 	// Wait for all goroutines to finish
 	wg.Wait()
 }
 
-func listen(p2pAddress string, wg *sync.WaitGroup) {
-	listener, listenerErr := net.Listen("tcp", p2pAddress)
-	if listenerErr != nil {
-		log.Fatalf("Error starting TCP server: %v", listenerErr)
+// where message got handled based on type
+func (node *GossipNode) handleMessage(msg *pb.GossipMessage) {
+	if _, seen := node.messageCache[string(msg.Payload)]; seen {
+		fmt.Println("duplicated message")
+		return // already seen this message
 	}
 
-	fmt.Println("P2P Server is listening on", listener.Addr())
+	// Process message
+	node.messageCache[string(msg.Payload)] = struct{}{}
+	log.Printf("Received message: %s", string(msg.Payload))
 
-	defer func(listener net.Listener) {
-		err := listener.Close()
-		if err != nil {
-			log.Fatalf("Error closing TCP server: %v", err)
+	// Gossip the message to other peers
+	node.peersMutex.RLock()
+	defer node.peersMutex.RUnlock()
+	for peer := range node.peers {
+		if err := send(peer, msg); err != nil {
+			log.Printf("Failed to send message to %s: %v", peer, err)
 		}
-	}(listener)
+	}
 }
