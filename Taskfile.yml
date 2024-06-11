@@ -1,0 +1,37 @@
+version: '3'
+
+vars:
+  CLIENT_SOURCE: "cmd/client.go"
+  SERVER_SOURCE: "cmd/main.go"
+  CLIENT_BINARY: "gossip_client"
+  SERVER_BINARY: "gossip_server"
+
+tasks:
+  build_client:
+    desc: "Compile the client program"
+    cmds:
+      - go build -o {{.CLIENT_BINARY}} {{.CLIENT_SOURCE}}
+    sources:
+      - "{{.CLIENT_SOURCE}}"
+    generates:
+      - "{{.CLIENT_BINARY}}"
+
+  build_server:
+    desc: "Compile the server program"
+    cmds:
+      - go build -o {{.SERVER_BINARY}} {{.SERVER_SOURCE}}
+    sources:
+      - "{{.SERVER_SOURCE}}"
+    generates:
+      - "{{.SERVER_BINARY}}"
+
+  build:
+    desc: "Compile both client and server programs"
+    cmds:
+      - task: build:client
+      - task: build:server
+
+  clean:
+    desc: "Clear binaries"
+    cmds:
+      - rm gossip_client gossip_server
