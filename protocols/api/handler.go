@@ -6,24 +6,35 @@ import (
 	"fmt"
 	"log"
 	"net"
+
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
 )
 
-// Handler handles incoming connections and dispatches messages based on type
-func Handler(conn net.Conn, channel chan AnnounceMsg) {
+type Handler struct {
+	validMessageTypes map[uint16]bool
+	logger            *logging.Logger
+}
+
+func NewHandler(logger *logging.Logger) *Handler {
+	return &Handler{logger: logger}
+}
+
+// Handle handles incoming connections and dispatches messages based on type
+func (handler *Handler) Handle(conn net.Conn, channel chan AnnounceMsg) {
 	defer func() {
 		if err := conn.Close(); err != nil {
-			log.Printf("Error closing connection: %v\n", err)
+			handler.logger.ErrorF("Error closing connection: %v", err)
 		}
-		fmt.Printf("Connection closed!\n----------------------------------\n")
+		handler.logger.Info("Connection closed")
 	}()
 
-	fmt.Printf("\n----------------------------------\nOpen connection with %s\n", conn.RemoteAddr())
+	handler.logger.Info("Open connection")
 
 	messageBuffer := new(bytes.Buffer)
 
 	readSize, err := messageBuffer.ReadFrom(conn)
 	if err != nil {
-		log.Printf("Error reading from connection: %v\n", err)
+		handler.logger.ErrorF("Error reading from connection: %v\n", err)
 		return
 	}
 
@@ -42,7 +53,7 @@ func Handler(conn net.Conn, channel chan AnnounceMsg) {
 
 	// Read the size
 	if err = binary.Read(reader, binary.BigEndian, &size); err != nil {
-		log.Printf("Error reading size: %v\n", err)
+		handler.logger.ErrorF("Error reading size: %v\n", err)
 		return
 	}
 
@@ -53,26 +64,26 @@ func Handler(conn net.Conn, channel chan AnnounceMsg) {
 
 	// Read the message type
 	if err = binary.Read(reader, binary.BigEndian, &messageType); err != nil {
-		log.Printf("Error reading message type: %v\n", err)
+		handler.logger.ErrorF("Error reading message type: %v\n", err)
 		return
 	}
 
 	// Handle message based on type
 	switch messageType {
 	case GossipAnnounce:
-		if err = AnnounceHandler(conn, reader, channel); err != nil {
-			log.Printf("Error handling ANNOUNCE message: %v\n", err)
+		if err = handler.announceHandler(conn, reader, channel); err != nil {
+			handler.logger.ErrorF("Error handling ANNOUNCE message: %v\n", err)
 		}
 	case GossipNotify:
-		if err = NotifyHandler(conn, reader); err != nil {
+		if err = handler.notifyHandler(conn, reader); err != nil {
 			log.Printf("Error handling NOTIFY message: %v\n", err)
 		}
 	case GossipNotification:
-		if err = NotificationHandler(conn, reader); err != nil {
+		if err = handler.notificationHandler(conn, reader); err != nil {
 			log.Printf("Error handling NOTIFICATION message: %v\n", err)
 		}
 	case GossipValidation:
-		if err = ValidationHandler(conn, reader); err != nil {
+		if err = handler.validationHandler(conn, reader); err != nil {
 			log.Printf("Error handling VALIDATION message: %v\n", err)
 		}
 	default:
@@ -80,10 +91,10 @@ func Handler(conn net.Conn, channel chan AnnounceMsg) {
 	}
 }
 
-// AnnounceHandler handles AnnounceMsg
-func AnnounceHandler(conn net.Conn, reader *bytes.Reader, channel chan AnnounceMsg) error {
+// announceHandler handles AnnounceMsg
+func (handler *Handler) announceHandler(conn net.Conn, reader *bytes.Reader, channel chan AnnounceMsg) error {
 	var msg AnnounceMsg
-	if err := unmarshallAnnounce(reader, &msg); err != nil {
+	if err := handler.unmarshallAnnounce(reader, &msg); err != nil {
 		return fmt.Errorf("failed to unmarshal announce message: %w", err)
 	}
 
@@ -91,16 +102,16 @@ func AnnounceHandler(conn net.Conn, reader *bytes.Reader, channel chan AnnounceM
 	// Successfully sent the message
 	case channel <- msg:
 	default:
-		return fmt.Errorf("channel is full or no receiver available")
+		return fmt.Errorf("no receiver available")
 	}
 
 	return nil
 }
 
-// NotifyHandler handles NotifyMsg
-func NotifyHandler(conn net.Conn, reader *bytes.Reader) error {
+// notifyHandler handles NotifyMsg
+func (handler *Handler) notifyHandler(conn net.Conn, reader *bytes.Reader) error {
 	var msg NotifyMsg
-	if err := unmarshallNotify(reader, &msg); err != nil {
+	if err := handler.unmarshallNotify(reader, &msg); err != nil {
 		return fmt.Errorf("failed to unmarshal notify message: %w", err)
 	}
 
@@ -108,9 +119,9 @@ func NotifyHandler(conn net.Conn, reader *bytes.Reader) error {
 }
 
 // NotificationHandler handles NotificationMsg
-func NotificationHandler(conn net.Conn, reader *bytes.Reader) error {
+func (handler *Handler) notificationHandler(conn net.Conn, reader *bytes.Reader) error {
 	var msg NotificationMsg
-	if err := unmarshallNotification(reader, &msg); err != nil {
+	if err := handler.unmarshallNotification(reader, &msg); err != nil {
 		return fmt.Errorf("failed to unmarshal notification message: %w", err)
 	}
 
@@ -118,11 +129,20 @@ func NotificationHandler(conn net.Conn, reader *bytes.Reader) error {
 }
 
 // ValidationHandler handles ValidationMsg
-func ValidationHandler(conn net.Conn, reader *bytes.Reader) error {
+func (handler *Handler) validationHandler(conn net.Conn, reader *bytes.Reader) error {
 	var msg ValidationMsg
-	if err := unmarshallValidation(reader, &msg); err != nil {
+	if err := handler.unmarshallValidation(reader, &msg); err != nil {
 		return fmt.Errorf("failed to unmarshal validation message: %w", err)
 	}
 
 	return nil
+}
+
+func (handler *Handler) sendResponse(conn net.Conn, s string) {
+	response := []byte(s)
+	write, err := conn.Write(response)
+	if err != nil {
+		handler.logger.ErrorF("Error writing response:", err)
+	}
+	handler.logger.ErrorF("Sent %d bytes. Message: %s", write, s)
 }
