@@ -2,8 +2,8 @@ package api
 
 import (
 	"fmt"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/protocols/api"
-	"log"
 	"net"
 	"sync"
 )
@@ -28,14 +28,17 @@ func (s *Server) Start() {
 
 func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan api.AnnounceMsg) {
 	listener, listenerErr := net.Listen("tcp", apiAddress)
+
+	logger := logging.NewCustomLogger()
+
 	if listenerErr != nil {
-		log.Fatalf("Error starting TCP server: %v", listenerErr)
+		logger.FatalF("Error starting TCP server: %v", listenerErr)
 	}
 
 	defer func(listener net.Listener) {
 		err := listener.Close()
 		if err != nil {
-			log.Fatalf("Error closing TCP server: %v", err)
+			logger.FatalF("Error closing TCP server: %v", err)
 		}
 	}(listener)
 
@@ -44,7 +47,7 @@ func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan api.Anno
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection:", err)
+			logger.FatalF("Error accepting connection:", err)
 			continue
 		}
 
@@ -54,7 +57,10 @@ func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan api.Anno
 		// handle this request in a different goroutine
 		go func(conn net.Conn) {
 			defer wg.Done() // Decrement the counter when the goroutine completes
-			api.Handler(conn, announceMsgChan)
+			logger.Host(conn.LocalAddr().String())
+			logger.Client(conn.RemoteAddr().String())
+			handler := api.NewHandler(logger)
+			handler.Handle(conn, announceMsgChan)
 		}(conn)
 	}
 }
