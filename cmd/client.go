@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/protocols/api"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"net"
 	"os"
 )
@@ -17,10 +17,12 @@ func main() {
 		destination string
 		port        int
 		message     string
+		datatype    int
 	)
 
 	flag.BoolVar(&announce, "a", false, "Send a GOSSIP_ANNOUNCE message")
 	flag.BoolVar(&notify, "n", false, "Send a GOSSIP_NOTIFY message")
+	flag.IntVar(&datatype, "t", 1, "GOSSIP host module IP")
 	flag.StringVar(&destination, "d", "", "GOSSIP host module IP")
 	flag.IntVar(&port, "p", 0, "GOSSIP host module port")
 	flag.StringVar(&message, "m", "", "GOSSIP host module port")
@@ -51,6 +53,11 @@ Examples:
 		os.Exit(1)
 	}
 
+	if datatype < 0 {
+		fmt.Println("Datatype must be uint16")
+		os.Exit(1)
+	}
+
 	if announce == true && notify == true {
 		fmt.Println("Only announce or notify.")
 		os.Exit(1)
@@ -69,9 +76,9 @@ Examples:
 	}
 
 	if announce {
-		sendMessage(conn, api.GossipAnnounce, createAnnounceMessage(message))
+		sendMessage(conn, enum.GossipAnnounce, createAnnounceMessage(uint16(datatype), message))
 	} else if notify {
-		sendMessage(conn, api.GossipNotify, createNotifyMessage())
+		sendMessage(conn, enum.GossipNotify, createNotifyMessage(uint16(datatype)))
 	}
 }
 
@@ -106,7 +113,7 @@ func sendMessage(conn net.Conn, messageType uint16, message []byte) {
 	fmt.Printf("Received response: %s\n", string(response[:n]))
 }
 
-func createAnnounceMessage(message string) []byte {
+func createAnnounceMessage(datatype uint16, message string) []byte {
 	const (
 		TTL      = uint8(1)
 		RESERVED = uint8(1)
@@ -123,10 +130,10 @@ func createAnnounceMessage(message string) []byte {
 	return buffer.Bytes()
 }
 
-func createNotifyMessage() []byte {
-	const (
+func createNotifyMessage(datatype uint16) []byte {
+	var (
 		RESERVED = uint16(1)
-		DATATYPE = uint16(2)
+		DATATYPE = enum.Datatype(datatype)
 	)
 
 	var buffer bytes.Buffer
