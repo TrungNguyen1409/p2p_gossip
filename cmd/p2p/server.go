@@ -2,7 +2,7 @@ package p2p
 
 import (
 	"fmt"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/protocols/api"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"log"
 	"sync"
 
@@ -14,10 +14,10 @@ type GossipNode struct {
 	peers           map[string]struct{}
 	peersMutex      sync.RWMutex
 	messageCache    map[string]struct{}
-	announceMsgChan chan api.AnnounceMsg
+	announceMsgChan chan enum.AnnounceMsg
 }
 
-func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan api.AnnounceMsg) *GossipNode {
+func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan enum.AnnounceMsg) *GossipNode {
 
 	peers := make(map[string]struct{})
 	for _, peer := range initialPeers {

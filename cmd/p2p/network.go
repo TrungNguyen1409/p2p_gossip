@@ -3,8 +3,8 @@ package p2p
 import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/protocols/api"
 	"log"
 	"net"
 	"sync"
@@ -73,7 +73,7 @@ func listen(p2pAddress string, msgHandler func(*pb.GossipMessage), wg *sync.Wait
 	}
 }
 
-func listenAnnounceMessage(announceMsgChan chan api.AnnounceMsg, wg *sync.WaitGroup) {
+func listenAnnounceMessage(announceMsgChan chan enum.AnnounceMsg, wg *sync.WaitGroup) {
 	for {
 		msg, ok := <-announceMsgChan
 		if !ok {

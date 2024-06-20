@@ -4,45 +4,51 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"log"
 	"net"
 
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/common"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
 )
 
 type Handler struct {
-	validMessageTypes map[uint16]bool
-	logger            *logging.Logger
+	conn            net.Conn
+	logger          *logging.Logger
+	announceMsgChan chan enum.AnnounceMsg
+	datatypeMapper  *common.DatatypeMapper
 }
 
-func NewHandler(logger *logging.Logger) *Handler {
-	return &Handler{logger: logger}
+func NewHandler(conn net.Conn, logger *logging.Logger, announceMsgChan chan enum.AnnounceMsg, datatypeMapper *common.DatatypeMapper) *Handler {
+	return &Handler{conn: conn, logger: logger, announceMsgChan: announceMsgChan, datatypeMapper: datatypeMapper}
 }
 
 // Handle handles incoming connections and dispatches messages based on type
-func (handler *Handler) Handle(conn net.Conn, channel chan AnnounceMsg) {
+func (h *Handler) Handle() {
 	defer func() {
-		if err := conn.Close(); err != nil {
-			handler.logger.ErrorF("Error closing connection: %v", err)
+		if err := h.conn.Close(); err != nil {
+			h.logger.ErrorF("Error closing connection: %v", err)
 		}
-		handler.logger.Info("Connection closed")
+		h.logger.Info("Connection closed")
 	}()
 
-	handler.logger.Info("Open connection")
+	h.conn.RemoteAddr()
+
+	h.logger.Info("Open connection")
 
 	messageBuffer := new(bytes.Buffer)
 
-	readSize, err := messageBuffer.ReadFrom(conn)
+	readSize, err := messageBuffer.ReadFrom(h.conn)
 	if err != nil {
-		handler.logger.ErrorF("Error reading from connection: %v\n", err)
+		h.logger.ErrorF("Error reading from connection: %v\n", err)
 		return
 	}
 
 	if readSize == 0 {
-		sendResponse(conn, "Empty message.\n")
+		h.sendResponse("Empty message.\n")
 		return
 	} else if readSize < 4 {
-		sendResponse(conn, "Message too short.\n")
+		h.sendResponse("Message too short.\n")
 		return
 	}
 
@@ -53,54 +59,56 @@ func (handler *Handler) Handle(conn net.Conn, channel chan AnnounceMsg) {
 
 	// Read the size
 	if err = binary.Read(reader, binary.BigEndian, &size); err != nil {
-		handler.logger.ErrorF("Error reading size: %v\n", err)
+		h.logger.ErrorF("Error reading size: %v\n", err)
 		return
 	}
 
 	if int64(size) != readSize {
-		sendResponse(conn, "Wrong message size.\n")
+		h.sendResponse("Wrong message size.\n")
 		return
 	}
 
 	// Read the message type
 	if err = binary.Read(reader, binary.BigEndian, &messageType); err != nil {
-		handler.logger.ErrorF("Error reading message type: %v\n", err)
+		h.logger.ErrorF("Error reading message type: %v\n", err)
 		return
 	}
 
 	// Handle message based on type
 	switch messageType {
-	case GossipAnnounce:
-		if err = handler.announceHandler(conn, reader, channel); err != nil {
-			handler.logger.ErrorF("Error handling ANNOUNCE message: %v\n", err)
+	case enum.GossipAnnounce:
+		if err = h.announceHandler(reader); err != nil {
+			h.logger.ErrorF("Error handling ANNOUNCE message: %v\n", err)
 		}
-	case GossipNotify:
-		if err = handler.notifyHandler(conn, reader); err != nil {
+	case enum.GossipNotify:
+		if err = h.notifyHandler(reader); err != nil {
 			log.Printf("Error handling NOTIFY message: %v\n", err)
 		}
-	case GossipNotification:
-		if err = handler.notificationHandler(conn, reader); err != nil {
+	case enum.GossipNotification:
+		if err = h.notificationHandler(reader); err != nil {
 			log.Printf("Error handling NOTIFICATION message: %v\n", err)
 		}
-	case GossipValidation:
-		if err = handler.validationHandler(conn, reader); err != nil {
+	case enum.GossipValidation:
+		if err = h.validationHandler(reader); err != nil {
 			log.Printf("Error handling VALIDATION message: %v\n", err)
 		}
 	default:
-		sendResponse(conn, fmt.Sprintf("Unknown message type %d.\n", messageType))
+		h.sendResponse(fmt.Sprintf("Unknown message type %d.\n", messageType))
 	}
+
+	h.datatypeMapper.Print()
 }
 
 // announceHandler handles AnnounceMsg
-func (handler *Handler) announceHandler(conn net.Conn, reader *bytes.Reader, channel chan AnnounceMsg) error {
-	var msg AnnounceMsg
-	if err := handler.unmarshallAnnounce(reader, &msg); err != nil {
+func (h *Handler) announceHandler(reader *bytes.Reader) error {
+	var msg enum.AnnounceMsg
+	if err := h.unmarshallAnnounce(reader, &msg); err != nil {
 		return fmt.Errorf("failed to unmarshal announce message: %w", err)
 	}
 
 	select {
 	// Successfully sent the message
-	case channel <- msg:
+	case h.announceMsgChan <- msg:
 	default:
 		return fmt.Errorf("no receiver available")
 	}
@@ -109,19 +117,21 @@ func (handler *Handler) announceHandler(conn net.Conn, reader *bytes.Reader, cha
 }
 
 // notifyHandler handles NotifyMsg
-func (handler *Handler) notifyHandler(conn net.Conn, reader *bytes.Reader) error {
-	var msg NotifyMsg
-	if err := handler.unmarshallNotify(reader, &msg); err != nil {
+func (h *Handler) notifyHandler(reader *bytes.Reader) error {
+	var msg enum.NotifyMsg
+	if err := h.unmarshallNotify(reader, &msg); err != nil {
 		return fmt.Errorf("failed to unmarshal notify message: %w", err)
 	}
+
+	h.datatypeMapper.Add(h.conn.RemoteAddr(), msg.DataType)
 
 	return nil
 }
 
 // NotificationHandler handles NotificationMsg
-func (handler *Handler) notificationHandler(conn net.Conn, reader *bytes.Reader) error {
-	var msg NotificationMsg
-	if err := handler.unmarshallNotification(reader, &msg); err != nil {
+func (h *Handler) notificationHandler(reader *bytes.Reader) error {
+	var msg enum.NotificationMsg
+	if err := h.unmarshallNotification(reader, &msg); err != nil {
 		return fmt.Errorf("failed to unmarshal notification message: %w", err)
 	}
 
@@ -129,20 +139,20 @@ func (handler *Handler) notificationHandler(conn net.Conn, reader *bytes.Reader)
 }
 
 // ValidationHandler handles ValidationMsg
-func (handler *Handler) validationHandler(conn net.Conn, reader *bytes.Reader) error {
-	var msg ValidationMsg
-	if err := handler.unmarshallValidation(reader, &msg); err != nil {
+func (h *Handler) validationHandler(reader *bytes.Reader) error {
+	var msg enum.ValidationMsg
+	if err := h.unmarshallValidation(reader, &msg); err != nil {
 		return fmt.Errorf("failed to unmarshal validation message: %w", err)
 	}
 
 	return nil
 }
 
-func (handler *Handler) sendResponse(conn net.Conn, s string) {
+func (h *Handler) sendResponse(s string) {
 	response := []byte(s)
-	write, err := conn.Write(response)
+	write, err := h.conn.Write(response)
 	if err != nil {
-		handler.logger.ErrorF("Error writing response:", err)
+		h.logger.ErrorF("Error writing response:", err)
 	}
-	handler.logger.ErrorF("Sent %d bytes. Message: %s", write, s)
+	h.logger.ErrorF("Sent %d bytes. Message: %s", write, s)
 }

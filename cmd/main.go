@@ -1,18 +1,21 @@
 package main
 
 import (
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
+	"log"
+	"sync"
+
 	"github.com/robfig/config"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/cmd/api"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/cmd/p2p"
-	api2 "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/protocols/api"
-	"log"
-	"sync"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/common"
 )
 
 type Server struct {
 	apiServer       *api.Server
 	p2pServer       *p2p.GossipNode
-	announceMsgChan chan api2.AnnounceMsg
+	announceMsgChan chan enum.AnnounceMsg
+	datatypeMapper  *common.DatatypeMapper
 }
 
 func NewServer() *Server {
@@ -31,9 +34,11 @@ func NewServer() *Server {
 		log.Fatalf("Can not read from config.ini %v", parseErr)
 	}
 
-	announceMsgChan := make(chan api2.AnnounceMsg)
+	announceMsgChan := make(chan enum.AnnounceMsg)
 
-	apiServer := api.NewServer(apiAddress, announceMsgChan)
+	datatypeMapper := common.NewMap()
+
+	apiServer := api.NewServer(apiAddress, announceMsgChan, datatypeMapper)
 	p2pServer := p2p.NewGossipNode(p2pAddress, []string{
 		"peer1.example.com:7051",
 		"peer2.example.com:7051",
@@ -41,7 +46,7 @@ func NewServer() *Server {
 	}, announceMsgChan,
 	)
 
-	return &Server{apiServer: apiServer, p2pServer: p2pServer, announceMsgChan: announceMsgChan}
+	return &Server{apiServer: apiServer, p2pServer: p2pServer, announceMsgChan: announceMsgChan, datatypeMapper: datatypeMapper}
 
 }
 
