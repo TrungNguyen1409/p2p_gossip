@@ -1,11 +1,10 @@
 package api
 
 import (
-	"fmt"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"net"
 	"sync"
 
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/common"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/protocols/api"
@@ -36,7 +35,13 @@ func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.Ann
 	logger := logging.NewCustomLogger()
 
 	if listenerErr != nil {
-		logger.FatalF("Error starting TCP server: %v", listenerErr)
+		logger.ErrorF("Error starting TCP server: %v", listenerErr)
+		logger.InfoF("Error starting TCP P2P server: %v\n", listenerErr)
+		logger.Info("Default port not available, finding available port...")
+		listener, listenerErr = net.Listen("tcp", "localhost:0")
+		if listenerErr != nil {
+			logger.ErrorF("failed to find an available port: %v", listenerErr)
+		}
 	}
 
 	defer func(listener net.Listener) {
@@ -46,12 +51,12 @@ func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.Ann
 		}
 	}(listener)
 
-	fmt.Println("API Server is listening on", listener.Addr())
+	logger.InfoF("API Server is listening on: %v", listener.Addr())
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			logger.FatalF("Error accepting connection:", err)
+			logger.InfoF("Error accepting connection: ", err)
 			continue
 		}
 
