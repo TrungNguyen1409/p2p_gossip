@@ -6,11 +6,15 @@ import (
 	"flag"
 	"fmt"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
 	"net"
 	"os"
 )
 
 func main() {
+
+	logger := logging.NewCustomLogger()
+
 	var (
 		announce    bool
 		notify      bool
@@ -44,34 +48,34 @@ Examples:
 	flag.Parse()
 
 	if destination == "" {
-		fmt.Println("Destination must be specified.")
+		logger.Info("Destination must be specified.")
 		os.Exit(1)
 	}
 
 	if port == 0 {
-		fmt.Println("Port must be specified.")
+		logger.Info("Port must be specified.")
 		os.Exit(1)
 	}
 
 	if datatype < 0 {
-		fmt.Println("Datatype must be uint16")
+		logger.Info("Datatype must be uint16")
 		os.Exit(1)
 	}
 
 	if announce == true && notify == true {
-		fmt.Println("Only announce or notify.")
+		logger.Info("Only announce or notify.")
 		os.Exit(1)
 	}
 
 	if announce && message == "" {
-		fmt.Println("Empty message for announce.")
+		logger.Info("Empty message for announce.")
 		os.Exit(1)
 	}
 
 	address := fmt.Sprintf("%s:%d", destination, port)
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
-		fmt.Printf("Failed to connect to %s: %v\n", address, err)
+		logger.ErrorF("Failed to connect to %s: %v\n", address, err)
 		os.Exit(1)
 	}
 
@@ -83,6 +87,8 @@ Examples:
 }
 
 func sendMessage(conn net.Conn, messageType uint16, message []byte) {
+	logger := logging.NewCustomLogger()
+
 	defer func(conn net.Conn) {
 		err := conn.Close()
 		if err != nil {
@@ -97,20 +103,20 @@ func sendMessage(conn net.Conn, messageType uint16, message []byte) {
 	_ = binary.Write(&writeBuffer, binary.BigEndian, message)
 	_, err := conn.Write(writeBuffer.Bytes())
 	if err != nil {
-		fmt.Printf("Failed to send message: %v\n", err)
+		logger.InfoF("Failed to send message: %v\n", err)
 		return
 	} else {
-		fmt.Printf("Sent %d bytes for message type %d.\n", writeBuffer.Len(), messageType)
+		logger.InfoF("Sent %d bytes for message type %d.\n", writeBuffer.Len(), messageType)
 	}
 
 	var response []byte
 	n, err := conn.Read(response)
 	if err != nil {
-		fmt.Printf("Error reading response: %v\n", err)
+		logger.InfoF("Error reading response: %v\n", err)
 		return
 	}
 
-	fmt.Printf("Received response: %s\n", string(response[:n]))
+	logger.InfoF("Received response: %s\n", string(response[:n]))
 }
 
 func createAnnounceMessage(datatype uint16, message string) []byte {

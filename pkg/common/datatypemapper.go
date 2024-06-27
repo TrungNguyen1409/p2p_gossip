@@ -8,6 +8,7 @@ import (
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 )
 
+// DatatypeMapper map address -> another map value: enum.Datatype -> boolean, that indicates presence of that type
 type DatatypeMapper struct {
 	mu   sync.RWMutex
 	data map[net.Addr]map[enum.Datatype]bool
