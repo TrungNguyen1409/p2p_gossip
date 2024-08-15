@@ -42,11 +42,12 @@ func NewServer() *Server {
 	}
 
 	announceMsgChan := make(chan enum.AnnounceMsg)
+	notifyMsgChan := make(chan enum.NotifyMsg)
 
 	datatypeMapper := common.NewMap()
 
 	//TODO: should the same datatypeMapper passed to both server?
-	apiServer := api.NewServer(apiAddress, announceMsgChan, datatypeMapper)
+	apiServer := api.NewServer(apiAddress, announceMsgChan, notifyMsgChan, datatypeMapper)
 	// TODO: list of current hosts must be fetch from bootstrapper
 	// TODO: add dataMapper to p2pServer too
 	p2pServer := p2p.NewGossipNode(p2pAddress, []string{}, announceMsgChan, datatypeMapper, bootstrapperAddress)

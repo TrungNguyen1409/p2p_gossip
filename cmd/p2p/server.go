@@ -75,6 +75,10 @@ func (node *GossipNode) Start() {
 	wg.Wait()
 }
 
+// listen: this function has multiple purposes:
+// - listen to messages from other peers
+// - gossip the message away
+// - check for the type of message that should be propagated, as requested from api of this peer
 func (node *GossipNode) listen(p2pAddress string, msgHandler func(*pb.GossipMessage), wg *sync.WaitGroup) {
 	logger := logging.NewCustomLogger()
 
@@ -113,6 +117,7 @@ func (node *GossipNode) listen(p2pAddress string, msgHandler func(*pb.GossipMess
 	}
 }
 
+// listenAnnounceMessage: listen to announce message and gossip it away.
 func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.AnnounceMsg, wg *sync.WaitGroup) {
 	logger := logging.NewCustomLogger()
 

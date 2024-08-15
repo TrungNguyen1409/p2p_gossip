@@ -13,23 +13,24 @@ import (
 type Server struct {
 	apiAddress      string
 	announceMsgChan chan enum.AnnounceMsg
+	notifyMsgChan   chan enum.NotifyMsg
 	datatypeMapper  *common.DatatypeMapper
 }
 
-func NewServer(apiAddress string, announceMsgChan chan enum.AnnounceMsg, datatypeMapper *common.DatatypeMapper) *Server {
-	return &Server{apiAddress: apiAddress, announceMsgChan: announceMsgChan, datatypeMapper: datatypeMapper}
+func NewServer(apiAddress string, announceMsgChan chan enum.AnnounceMsg, notifyMsgChan chan enum.NotifyMsg, datatypeMapper *common.DatatypeMapper) *Server {
+	return &Server{apiAddress: apiAddress, announceMsgChan: announceMsgChan, notifyMsgChan: notifyMsgChan, datatypeMapper: datatypeMapper}
 }
 
 func (s *Server) Start() {
 	var wg sync.WaitGroup
 
-	listen(s.apiAddress, &wg, s.announceMsgChan, s.datatypeMapper)
+	listen(s.apiAddress, &wg, s.announceMsgChan, s.notifyMsgChan, s.datatypeMapper)
 
 	// Wait for all goroutines to finish
 	wg.Wait()
 }
 
-func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.AnnounceMsg, datatypeMapper *common.DatatypeMapper) {
+func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.AnnounceMsg, notifyMsgChan chan enum.NotifyMsg, datatypeMapper *common.DatatypeMapper) {
 	listener, listenerErr := net.Listen("tcp", apiAddress)
 
 	logger := logging.NewCustomLogger()
@@ -52,6 +53,8 @@ func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.Ann
 	}(listener)
 
 	logger.InfoF("API Server is listening on: %v", listener.Addr())
+
+	// listen to notify message and send it back to other module here
 
 	for {
 		conn, err := listener.Accept()

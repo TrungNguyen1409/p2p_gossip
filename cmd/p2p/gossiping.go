@@ -73,9 +73,9 @@ func (node *GossipNode) periodicGossip() {
 			}
 			node.peersMutex.RUnlock()
 
-			for _, peer := range peers {
+			/*for _, peer := range peers {
 				go node.sendPeerList(peer)
-			}
+			}*/
 		}
 	}
 }
