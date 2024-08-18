@@ -15,6 +15,7 @@ type Server struct {
 	apiServer       *api.Server
 	p2pServer       *p2p.GossipNode
 	announceMsgChan chan enum.AnnounceMsg
+	notifyMsgChan   chan enum.NotifyMsg
 	datatypeMapper  *common.DatatypeMapper
 }
 
@@ -50,7 +51,7 @@ func NewServer() *Server {
 	apiServer := api.NewServer(apiAddress, announceMsgChan, notifyMsgChan, datatypeMapper)
 	// TODO: list of current hosts must be fetch from bootstrapper
 	// TODO: add dataMapper to p2pServer too
-	p2pServer := p2p.NewGossipNode(p2pAddress, []string{}, announceMsgChan, datatypeMapper, bootstrapperAddress)
+	p2pServer := p2p.NewGossipNode(p2pAddress, []string{}, announceMsgChan, notifyMsgChan, datatypeMapper, bootstrapperAddress)
 
 	return &Server{apiServer: apiServer, p2pServer: p2pServer, announceMsgChan: announceMsgChan, datatypeMapper: datatypeMapper}
 

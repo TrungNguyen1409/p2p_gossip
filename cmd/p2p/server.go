@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -20,6 +21,7 @@ type GossipNode struct {
 	fanout          int
 	gossipInterval  time.Duration
 	announceMsgChan chan enum.AnnounceMsg
+	notifyMsgChan   chan enum.NotifyMsg
 	datatypeMapper  *common.DatatypeMapper
 	bootstrapURL    string
 }
@@ -29,7 +31,7 @@ const (
 	gossipInterval = 5 * time.Second
 )
 
-func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan enum.AnnounceMsg, datatypeMapper *common.DatatypeMapper, bootstrapURL string) *GossipNode {
+func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan enum.AnnounceMsg, notifyMsgChan chan enum.NotifyMsg, datatypeMapper *common.DatatypeMapper, bootstrapURL string) *GossipNode {
 	peers := make(map[string]struct{})
 	for _, peer := range initialPeers {
 		peers[peer] = struct{}{}
@@ -39,6 +41,7 @@ func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan cha
 		p2pAddress:      p2pAddress,
 		peers:           peers,
 		announceMsgChan: announceMsgChan,
+		notifyMsgChan:   notifyMsgChan,
 		messageCache:    make(map[string]struct{}),
 		fanout:          fanout,
 		gossipInterval:  gossipInterval,
@@ -64,7 +67,7 @@ func (node *GossipNode) Start() {
 
 	go func() {
 		defer wg.Done()
-		node.listenAnnounceMessage(node.announceMsgChan, &wg)
+		node.listenAnnounceMessage(node.announceMsgChan)
 	}()
 
 	go func() {
@@ -94,7 +97,6 @@ func (node *GossipNode) listen(p2pAddress string, msgHandler func(*pb.GossipMess
 
 	logger.InfoF("P2P Server is listening on: %v", ln.Addr())
 
-	// Register with Bootstrapper
 	if err := node.registerWithBootstrapper(ln.Addr().String()); err != nil {
 		logger.FatalF("Failed to register with bootstrapper: %v", err)
 	}
@@ -113,12 +115,13 @@ func (node *GossipNode) listen(p2pAddress string, msgHandler func(*pb.GossipMess
 			continue
 		}
 		wg.Add(1)
-		go HandleConnection(conn, msgHandler)
+		go node.HandleConnection(conn)
 	}
 }
 
 // listenAnnounceMessage: listen to announce message and gossip it away.
-func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.AnnounceMsg, wg *sync.WaitGroup) {
+// currently cannot distinguish between announce and notify
+func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.AnnounceMsg) {
 	logger := logging.NewCustomLogger()
 
 	for {
@@ -132,11 +135,11 @@ func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.Announce
 
 			// handle gossip algorithm here!
 			gossipMsg := &pb.GossipMessage{
-				Payload: []byte("hello"),
-				From:    "localhost", // Replace with actual address if needed
+				Payload: []byte(msg.Data),                // Assuming `Content` is a field in `AnnounceMsg`
+				From:    node.p2pAddress,                 // Use the node's own address
+				Type:    strconv.Itoa(int(msg.DataType)), // Assuming `Type` is a field in `AnnounceMsg`
 			}
 
-			// Add message to cache to prevent reprocessing
 			//messageCache[msg.Message] = struct{}{}
 
 			node.gossip(gossipMsg)
@@ -144,7 +147,7 @@ func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.Announce
 	}
 }
 
-func HandleConnection(conn net.Conn, msgHandler func(*pb.GossipMessage)) {
+func (node *GossipNode) HandleConnection(conn net.Conn) {
 	logger := logging.NewCustomLogger()
 
 	defer func(conn net.Conn) {
@@ -168,18 +171,38 @@ func HandleConnection(conn net.Conn, msgHandler func(*pb.GossipMessage)) {
 		return
 	}
 
-	msgHandler(msg)
+	node.handleMessage(msg)
 }
 
+var stringToDatatype = map[string]enum.Datatype{
+	"1": enum.Info,
+	"2": enum.Warning,
+	"3": enum.Error,
+}
+
+// TODO: write handler of different gossip message types here
 func (node *GossipNode) handleMessage(msg *pb.GossipMessage) {
 	logger := logging.NewCustomLogger()
 
-	if _, seen := node.messageCache[string(msg.Payload)]; seen {
-		logger.Info("duplicated message")
-		return // already seen this message
+	if node.datatypeMapper.Check(msg.Type) {
+		logger.InfoF("Data type found: %s", msg.Type)
+
+		newNotifyMsg := enum.NotifyMsg{
+			Reserved: 0,
+			DataType: stringToDatatype[msg.Type],
+		}
+
+		node.notifyMsgChan <- newNotifyMsg
+		logger.Info("New NotifyMsg added to channel")
+
 	}
 
-	// Process message
+	if _, seen := node.messageCache[string(msg.Payload)]; seen {
+		logger.Info("duplicated message")
+		return
+	}
+
+	// Process message: dont save the whole message, use msg_id
 	node.messageCache[string(msg.Payload)] = struct{}{}
 	logger.InfoF("Received message: %s", string(msg.Payload))
 
