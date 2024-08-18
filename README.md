@@ -46,7 +46,7 @@ Examples:
 5. ./client -n -d  127.0.0.1 -p 9001 -t 1  
 
 // trigger one gossip node spread notify message to its neighbour
-6. ./client -a -d 127.0.0.1 -p 51142 -m randomm
+6. ./client -a -d 127.0.0.1 -p [API_PORT_OF_A_NODE] -m randomm
 
 all receiving gossip node will handle the notify message if there is matching in notify Channel
 ```
