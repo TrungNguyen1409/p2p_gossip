@@ -55,6 +55,20 @@ func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.Ann
 	logger.InfoF("API Server is listening on: %v", listener.Addr())
 
 	// listen to notify message and send it back to other module here
+	go func(ch <-chan enum.NotifyMsg) {
+		for {
+			// Wait for a message to be received on the channel
+			msg, ok := <-ch
+			if !ok {
+				// If the channel is closed, exit the goroutine
+				logger.InfoF("Channel closed, exiting goroutine")
+				return
+			}
+			// Print the received message
+			logger.InfoF("Received message:", msg)
+		}
+
+	}(notifyMsgChan)
 
 	for {
 		conn, err := listener.Accept()

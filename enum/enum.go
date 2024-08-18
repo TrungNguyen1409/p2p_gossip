@@ -11,7 +11,7 @@ const (
 type Datatype uint16
 
 const (
-	Info Datatype = iota
+	Info Datatype = iota + 1
 	Warning
 	Error
 )
