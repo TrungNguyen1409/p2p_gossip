@@ -144,6 +144,7 @@ func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.Announce
 
 			//messageCache[msg.Message] = struct{}{}
 			//TODO: handle message after types first? before gossip further
+
 			node.gossip(gossipMsg)
 		}
 	}

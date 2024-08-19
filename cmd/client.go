@@ -22,6 +22,7 @@ func main() {
 		port        int
 		message     string
 		datatype    int
+		ttl         int
 	)
 
 	flag.BoolVar(&announce, "a", false, "Send a GOSSIP_ANNOUNCE message")
@@ -29,6 +30,7 @@ func main() {
 	flag.IntVar(&datatype, "t", 1, "Datatype of Message")
 	flag.StringVar(&destination, "d", "", "GOSSIP host module IP")
 	flag.IntVar(&port, "p", 0, "GOSSIP host module port")
+	flag.IntVar(&ttl, "ttl", 1, "GOSSIP host module port")
 	flag.StringVar(&message, "m", "", "GOSSIP host module port")
 
 	flag.Usage = func() {
@@ -80,7 +82,7 @@ Examples:
 	}
 
 	if announce {
-		sendMessage(conn, enum.GossipAnnounce, createAnnounceMessage(uint16(datatype), message))
+		sendMessage(conn, enum.GossipAnnounce, createAnnounceMessage(uint16(datatype), message, uint8(ttl)))
 	} else if notify {
 		sendMessage(conn, enum.GossipNotify, createNotifyMessage(uint16(datatype)))
 	}
@@ -119,9 +121,9 @@ func sendMessage(conn net.Conn, messageType uint16, message []byte) {
 	logger.InfoF("Received response: %s\n", string(response[:n]))
 }
 
-func createAnnounceMessage(datatype uint16, message string) []byte {
+func createAnnounceMessage(datatype uint16, message string, ttl uint8) []byte {
 	var (
-		TTL      = uint8(4)
+		TTL      = ttl
 		RESERVED = uint8(1)
 		DATATYPE = enum.Datatype(datatype)
 	)
