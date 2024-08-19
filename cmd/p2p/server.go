@@ -2,10 +2,10 @@ package p2p
 
 import (
 	"net"
-	"strconv"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/common"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
@@ -118,7 +118,7 @@ func (node *GossipNode) listen(p2pAddress string, msgHandler func(*pb.GossipMess
 	}
 }
 
-// listenAnnounceMessage: listen to announce message and gossip it away.
+// listenAnnounceMessage: listen to announce message and gossip it away. ahh this function is to take announceMsg from the channel (used or intrad node call)
 // currently cannot distinguish between announce and notify
 func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.AnnounceMsg) {
 	logger := logging.NewCustomLogger()
@@ -133,14 +133,17 @@ func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.Announce
 			logger.InfoF("P2P Server: Received a message: %+v\n", msg)
 
 			// handle gossip algorithm here!
+			// TODO: 1. add TTL here too but this is just used to send announce msg
 			gossipMsg := &pb.GossipMessage{
-				Payload: []byte(msg.Data),                // Assuming `Content` is a field in `AnnounceMsg`
-				From:    node.p2pAddress,                 // Use the node's own address
-				Type:    strconv.Itoa(int(msg.DataType)), // Assuming `Type` is a field in `AnnounceMsg`
+				MessageId: uuid.New().String(),
+				Payload:   []byte(msg.Data), // Assuming `Content` is a field in `AnnounceMsg`
+				From:      node.p2pAddress,  // Use the node's own address
+				Type:      int32(msg.DataType),
+				Ttl:       int32(msg.TTL), // Assuming `Type` is a field in `AnnounceMsg`
 			}
 
 			//messageCache[msg.Message] = struct{}{}
-
+			//TODO: handle message after types first? before gossip further
 			node.gossip(gossipMsg)
 		}
 	}
@@ -173,22 +176,16 @@ func (node *GossipNode) HandleConnection(conn net.Conn) {
 	node.handleMessage(msg)
 }
 
-var stringToDatatype = map[string]enum.Datatype{
-	"1": enum.Info,
-	"2": enum.Warning,
-	"3": enum.Error,
-}
-
 // TODO: write handler of different gossip message types here
 func (node *GossipNode) handleMessage(msg *pb.GossipMessage) {
 	logger := logging.NewCustomLogger()
 
-	if node.datatypeMapper.Check(msg.Type) {
+	if node.datatypeMapper.CheckNotify(int(msg.Type)) {
 		logger.InfoF("Data type found: %s", msg.Type)
 
 		newNotifyMsg := enum.NotifyMsg{
 			Reserved: 0,
-			DataType: stringToDatatype[msg.Type],
+			DataType: enum.Datatype(msg.Type),
 		}
 
 		node.notifyMsgChan <- newNotifyMsg

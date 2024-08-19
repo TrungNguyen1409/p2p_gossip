@@ -31,56 +31,31 @@ func (am *DatatypeMapper) Add(addr net.Addr, datatype enum.Datatype) {
 	am.data[addr][datatype] = true
 }
 
-// Mapping of string to Datatype enum
-var stringToDatatype = map[string]enum.Datatype{
-	"1": enum.Info,
-	"2": enum.Warning,
-	"3": enum.Error,
-}
-
-// Converts string to Datatype enum
-func stringToEnum(s string) (enum.Datatype, bool) {
-	fmt.Printf("Checking for string: %s\n", s) // Debugging
-	datatype, exists := stringToDatatype[s]
-	if exists {
-		fmt.Printf("Found mapping: %s -> %v\n", s, datatype) // Debugging
-	} else {
-		fmt.Printf("No mapping found for: %s\n", s) // Debugging
-	}
-	return datatype, exists
-}
-
-// Check checks whether datatype exist
-func (am *DatatypeMapper) Check(datatypeStr string) bool {
-	// Print the input datatypeStr
-	fmt.Println("In Check(), datatypeStr: ", datatypeStr)
-
-	// Print the current state of am.data map
-	fmt.Println("Current state of am.data map:", am.data)
-
-	// Attempt to convert string to enum
-	datatype, exists := stringToEnum(datatypeStr)
-	if !exists {
-		fmt.Printf("Datatype '%s' does not exist in enum mapping.\n", datatypeStr)
-		fmt.Printf("Datatype value returned: %+v\n", datatype)
+func (am *DatatypeMapper) CheckNotify(datatype int) bool {
+	// Check if the datatype is GossipNotify
+	if datatype != int(enum.GossipNotify) {
+		fmt.Printf("Datatype '%d' is not of type GossipNotify.\n", datatype)
 		return false
 	}
 
-	// Lock the map for reading
+	fmt.Println("In CheckNotify(), datatype: ", datatype)
+	fmt.Println("Current state of am.data map:", am.data)
+
+	datatypeEnum := enum.Datatype(datatype)
+
 	am.mu.RLock()
 	defer am.mu.RUnlock()
 
 	// Iterate through the map and check for existence
 	for addr, datatypes := range am.data {
 		fmt.Printf("Checking address: %s with datatypes: %v\n", addr.String(), datatypes)
-		if _, exists := datatypes[datatype]; exists {
-			fmt.Printf("Datatype '%s' exists in the map for address %s.\n", datatypeStr, addr.String())
+		if _, exists := datatypes[datatypeEnum]; exists {
+			fmt.Printf("Datatype '%d' (GossipNotify) exists in the map for address %s.\n", datatype, addr.String())
 			return true
 		}
 	}
 
-	// If the datatype was not found
-	fmt.Printf("Datatype '%s' does not exist in any address in the map.\n", datatypeStr)
+	fmt.Printf("Datatype '%d' (GossipNotify) does not exist in any address in the map.\n", datatype)
 	return false
 }
 
