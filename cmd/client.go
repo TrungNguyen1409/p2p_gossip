@@ -26,7 +26,7 @@ func main() {
 
 	flag.BoolVar(&announce, "a", false, "Send a GOSSIP_ANNOUNCE message")
 	flag.BoolVar(&notify, "n", false, "Send a GOSSIP_NOTIFY message")
-	flag.IntVar(&datatype, "t", 1, "GOSSIP host module IP")
+	flag.IntVar(&datatype, "t", 1, "Datatype of Message")
 	flag.StringVar(&destination, "d", "", "GOSSIP host module IP")
 	flag.IntVar(&port, "p", 0, "GOSSIP host module port")
 	flag.StringVar(&message, "m", "", "GOSSIP host module port")
@@ -120,10 +120,10 @@ func sendMessage(conn net.Conn, messageType uint16, message []byte) {
 }
 
 func createAnnounceMessage(datatype uint16, message string) []byte {
-	const (
-		TTL      = uint8(1)
+	var (
+		TTL      = uint8(4)
 		RESERVED = uint8(1)
-		DATATYPE = uint16(1)
+		DATATYPE = enum.Datatype(datatype)
 	)
 
 	var buffer bytes.Buffer
