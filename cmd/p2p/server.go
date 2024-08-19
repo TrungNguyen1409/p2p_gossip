@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/common"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
@@ -214,39 +213,4 @@ func (node *GossipNode) handleMessage(msg *pb.GossipMessage) {
 			logger.ErrorF("Failed to send message to %s: %v", peer, err)
 		}
 	}
-}
-
-func serialize(msg *pb.GossipMessage) ([]byte, error) {
-	return proto.Marshal(msg)
-}
-
-func deserialize(data []byte) (*pb.GossipMessage, error) {
-	var msg pb.GossipMessage
-	err := proto.Unmarshal(data, &msg)
-	if err != nil {
-		return nil, err
-	}
-	return &msg, nil
-}
-
-// send sends a message to a peer
-func send(address string, msg *pb.GossipMessage) error {
-	conn, err := net.Dial("tcp", address)
-	if err != nil {
-		return err
-	}
-
-	defer func(conn net.Conn) {
-		err := conn.Close()
-		if err != nil {
-		}
-	}(conn)
-
-	data, err := serialize(msg)
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Write(data)
-	return err
 }
