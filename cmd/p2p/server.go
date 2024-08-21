@@ -61,7 +61,7 @@ func (node *GossipNode) Start() {
 
 	go func() {
 		defer wg.Done()
-		node.listen(node.p2pAddress, node.handleMessage, &wg)
+		node.listen(node.p2pAddress, &wg)
 	}()
 
 	go func() {
@@ -81,7 +81,7 @@ func (node *GossipNode) Start() {
 // - listen to messages from other peers
 // - gossip the message away
 // - check for the type of message that should be propagated, as requested from api of this peer
-func (node *GossipNode) listen(p2pAddress string, msgHandler func(*pb.GossipMessage), wg *sync.WaitGroup) {
+func (node *GossipNode) listen(p2pAddress string, wg *sync.WaitGroup) {
 	logger := logging.NewCustomLogger()
 
 	ln, err := net.Listen("tcp", p2pAddress)
@@ -172,25 +172,43 @@ func (node *GossipNode) HandleConnection(conn net.Conn) {
 		return
 	}
 
-	node.handleMessage(msg)
+	node.handleGossipMessage(msg)
 }
 
 // TODO: write handler of different gossip message types here
-func (node *GossipNode) handleMessage(msg *pb.GossipMessage) {
+func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage) {
 	logger := logging.NewCustomLogger()
 	//check whether node has demanded Notify by checking whether incoming message has type of Notification 502
-	if node.datatypeMapper.CheckNotify(int(msg.Type)) {
-		logger.InfoF("Notification Message found: %s", msg.Type)
+	// testing client is currently sending announce message, not notification (fix client a bit)
+	// notification is not being send from peer to peer but from gossip to module
+	//how to know : peer -----announce----> peer ----- notification ----> module
+	// TODO: fix code according to realization above
+	switch msg.Type {
+	case int32(enum.GossipAnnounce):
+		logger.Debug("announce")
+		if node.datatypeMapper.CheckNotify(int(msg.Type)) {
+			logger.InfoF("Notification Message found: %s", msg.Type)
 
-		newNotificationMsg := enum.NotificationMsg{
-			MessageID: msg.MessageId,
-			DataType:  enum.Datatype(msg.Type),
-			Data:      string(msg.Payload),
+			newNotificationMsg := enum.NotificationMsg{
+				MessageID: msg.MessageId,
+				DataType:  enum.Datatype(enum.GossipNotification),
+				Data:      string(msg.Payload),
+			}
+
+			node.notificationMsgChan <- newNotificationMsg
+			logger.Info("New NotificationMsg added to channel")
+
 		}
-
-		node.notificationMsgChan <- newNotificationMsg
-		logger.Info("New NotificationMsg added to channel")
-
+	case int32(enum.PeerAnnounce):
+		logger.Debug("notificaiton")
+	case int32(enum.PeerLeave):
+		logger.Debug("peer left")
+	case int32(enum.PeerListRequest):
+		logger.Debug("peer list request")
+	case int32(enum.PeerListResponse):
+		logger.Debug("list response")
+	default:
+		logger.Debug("default")
 	}
 
 	if _, seen := node.messageCache[string(msg.Payload)]; seen {
@@ -199,7 +217,7 @@ func (node *GossipNode) handleMessage(msg *pb.GossipMessage) {
 	}
 
 	// Process message: dont save the whole message, use msg_id
-	node.messageCache[string(msg.Payload)] = struct{}{}
+	//node.messageCache[string(msg.Payload)] = struct{}{}
 	logger.InfoF("Received message: %s", string(msg.Payload))
 
 	// Gossip the message to other peers
