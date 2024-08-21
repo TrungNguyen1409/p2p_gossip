@@ -32,14 +32,9 @@ func (am *DatatypeMapper) Add(addr net.Addr, datatype enum.Datatype) {
 }
 
 func (am *DatatypeMapper) CheckNotify(datatype int) bool {
-	// Check if the datatype is GossipNotify
-	if datatype != int(enum.GossipNotification) {
-		fmt.Printf("Datatype '%d' is not of type GossipNotification.\n", datatype)
-		return false
-	}
 
 	fmt.Println("Current state of am.data map:", am.data)
-
+	//checking if notify exists
 	notifyMsgType := enum.Datatype(enum.GossipNotify)
 
 	am.mu.RLock()
