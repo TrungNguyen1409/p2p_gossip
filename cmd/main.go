@@ -12,11 +12,11 @@ import (
 )
 
 type Server struct {
-	apiServer       *api.Server
-	p2pServer       *p2p.GossipNode
-	announceMsgChan chan enum.AnnounceMsg
-	notifyMsgChan   chan enum.NotifyMsg
-	datatypeMapper  *common.DatatypeMapper
+	apiServer           *api.Server
+	p2pServer           *p2p.GossipNode
+	announceMsgChan     chan enum.AnnounceMsg
+	notificationMsgChan chan enum.NotifyMsg
+	datatypeMapper      *common.DatatypeMapper
 }
 
 func NewServer() *Server {
@@ -43,15 +43,15 @@ func NewServer() *Server {
 	}
 
 	announceMsgChan := make(chan enum.AnnounceMsg)
-	notifyMsgChan := make(chan enum.NotifyMsg)
+	notificationMsgChan := make(chan enum.NotificationMsg)
 
 	datatypeMapper := common.NewMap()
 
 	//TODO: should the same datatypeMapper passed to both server?
-	apiServer := api.NewServer(apiAddress, announceMsgChan, notifyMsgChan, datatypeMapper)
+	apiServer := api.NewServer(apiAddress, announceMsgChan, notificationMsgChan, datatypeMapper)
 	// TODO: list of current hosts must be fetch from bootstrapper
 	// TODO: add dataMapper to p2pServer too
-	p2pServer := p2p.NewGossipNode(p2pAddress, []string{}, announceMsgChan, notifyMsgChan, datatypeMapper, bootstrapperAddress)
+	p2pServer := p2p.NewGossipNode(p2pAddress, []string{}, announceMsgChan, notificationMsgChan, datatypeMapper, bootstrapperAddress)
 
 	return &Server{apiServer: apiServer, p2pServer: p2pServer, announceMsgChan: announceMsgChan, datatypeMapper: datatypeMapper}
 

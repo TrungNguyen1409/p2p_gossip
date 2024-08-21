@@ -4,8 +4,6 @@ package p2p;
 
 option go_package = "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto";
 
-// GossipMessage defines a message for the gossip protocol.
-// TODO: use uuid for message ID
 message GossipMessage {
   int32 type = 1;
   string from =  2;

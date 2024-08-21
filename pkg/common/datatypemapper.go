@@ -33,23 +33,22 @@ func (am *DatatypeMapper) Add(addr net.Addr, datatype enum.Datatype) {
 
 func (am *DatatypeMapper) CheckNotify(datatype int) bool {
 	// Check if the datatype is GossipNotify
-	if datatype != int(enum.GossipNotify) {
-		fmt.Printf("Datatype '%d' is not of type GossipNotify.\n", datatype)
+	if datatype != int(enum.GossipNotification) {
+		fmt.Printf("Datatype '%d' is not of type GossipNotification.\n", datatype)
 		return false
 	}
 
-	fmt.Println("In CheckNotify(), datatype: ", datatype)
 	fmt.Println("Current state of am.data map:", am.data)
 
-	datatypeEnum := enum.Datatype(datatype)
+	notifyMsgType := enum.Datatype(enum.GossipNotify)
 
 	am.mu.RLock()
 	defer am.mu.RUnlock()
 
-	// Iterate through the map and check for existence
+	// Iterate through the map and check for existence of Notify demand
 	for addr, datatypes := range am.data {
 		fmt.Printf("Checking address: %s with datatypes: %v\n", addr.String(), datatypes)
-		if _, exists := datatypes[datatypeEnum]; exists {
+		if _, exists := datatypes[notifyMsgType]; exists {
 			fmt.Printf("Datatype '%d' (GossipNotify) exists in the map for address %s.\n", datatype, addr.String())
 			return true
 		}

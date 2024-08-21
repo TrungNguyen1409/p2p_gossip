@@ -13,16 +13,16 @@ import (
 )
 
 type GossipNode struct {
-	p2pAddress      string
-	peers           map[string]struct{}
-	peersMutex      sync.RWMutex
-	messageCache    map[string]struct{}
-	fanout          int
-	gossipInterval  time.Duration
-	announceMsgChan chan enum.AnnounceMsg
-	notifyMsgChan   chan enum.NotifyMsg
-	datatypeMapper  *common.DatatypeMapper
-	bootstrapURL    string
+	p2pAddress          string
+	peers               map[string]struct{}
+	peersMutex          sync.RWMutex
+	messageCache        map[string]struct{}
+	fanout              int
+	gossipInterval      time.Duration
+	announceMsgChan     chan enum.AnnounceMsg
+	notificationMsgChan chan enum.NotificationMsg
+	datatypeMapper      *common.DatatypeMapper
+	bootstrapURL        string
 }
 
 const (
@@ -30,22 +30,22 @@ const (
 	gossipInterval = 5 * time.Second
 )
 
-func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan enum.AnnounceMsg, notifyMsgChan chan enum.NotifyMsg, datatypeMapper *common.DatatypeMapper, bootstrapURL string) *GossipNode {
+func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan enum.AnnounceMsg, notificationMsgChan chan enum.NotificationMsg, datatypeMapper *common.DatatypeMapper, bootstrapURL string) *GossipNode {
 	peers := make(map[string]struct{})
 	for _, peer := range initialPeers {
 		peers[peer] = struct{}{}
 	}
 
 	return &GossipNode{
-		p2pAddress:      p2pAddress,
-		peers:           peers,
-		announceMsgChan: announceMsgChan,
-		notifyMsgChan:   notifyMsgChan,
-		messageCache:    make(map[string]struct{}),
-		fanout:          fanout,
-		gossipInterval:  gossipInterval,
-		datatypeMapper:  datatypeMapper,
-		bootstrapURL:    bootstrapURL,
+		p2pAddress:          p2pAddress,
+		peers:               peers,
+		announceMsgChan:     announceMsgChan,
+		notificationMsgChan: notificationMsgChan,
+		messageCache:        make(map[string]struct{}),
+		fanout:              fanout,
+		gossipInterval:      gossipInterval,
+		datatypeMapper:      datatypeMapper,
+		bootstrapURL:        bootstrapURL,
 	}
 }
 
@@ -178,17 +178,18 @@ func (node *GossipNode) HandleConnection(conn net.Conn) {
 // TODO: write handler of different gossip message types here
 func (node *GossipNode) handleMessage(msg *pb.GossipMessage) {
 	logger := logging.NewCustomLogger()
-
+	//check whether node has demanded Notify by checking whether incoming message has type of Notification 502
 	if node.datatypeMapper.CheckNotify(int(msg.Type)) {
-		logger.InfoF("Data type found: %s", msg.Type)
+		logger.InfoF("Notification Message found: %s", msg.Type)
 
-		newNotifyMsg := enum.NotifyMsg{
-			Reserved: 0,
-			DataType: enum.Datatype(msg.Type),
+		newNotificationMsg := enum.NotificationMsg{
+			MessageID: msg.MessageId,
+			DataType:  enum.Datatype(msg.Type),
+			Data:      string(msg.Payload),
 		}
 
-		node.notifyMsgChan <- newNotifyMsg
-		logger.Info("New NotifyMsg added to channel")
+		node.notificationMsgChan <- newNotificationMsg
+		logger.Info("New NotificationMsg added to channel")
 
 	}
 
