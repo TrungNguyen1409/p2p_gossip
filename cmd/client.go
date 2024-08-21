@@ -119,7 +119,7 @@ func createAnnounceMessage(message string, ttl uint8) []byte {
 	var (
 		TTL      = ttl
 		RESERVED = uint8(1)
-		DATATYPE = enum.Datatype(502)
+		DATATYPE = enum.Datatype(500)
 	)
 
 	var buffer bytes.Buffer
