@@ -126,22 +126,20 @@ func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.Announce
 	for {
 		msg, ok := <-announceMsgChan
 		if !ok {
-			// Channel is closed, exit the loop
 			logger.Info("Channel closed, exiting loop")
 			return
 		} else {
 			logger.InfoF("P2P Server: Received a message: %+v\n", msg)
 
-			// handle gossip algorithm here!
-			// TODO: 1. add TTL here too but this is just used to send announce msg
 			gossipMsg := &pb.GossipMessage{
-				MessageId: uuid.New().String(),
+				MessageId: generate16BitHash(uuid.New().String()),
 				Payload:   []byte(msg.Data), // Assuming `Content` is a field in `AnnounceMsg`
 				From:      node.p2pAddress,  // Use the node's own address
 				Type:      int32(msg.DataType),
 				Ttl:       int32(msg.TTL), // Assuming `Type` is a field in `AnnounceMsg`
 			}
 
+			//TODO: cache id of message
 			//messageCache[msg.Message] = struct{}{}
 			//TODO: handle message after types first? before gossip further
 

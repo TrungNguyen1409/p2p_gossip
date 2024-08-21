@@ -1,6 +1,8 @@
 package p2p
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"github.com/golang/protobuf/proto"
 	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
 	"net"
@@ -41,4 +43,9 @@ func send(address string, msg *pb.GossipMessage) error {
 
 	_, err = conn.Write(data)
 	return err
+}
+
+func generate16BitHash(input string) string {
+	hash := sha256.Sum256([]byte(input))
+	return hex.EncodeToString(hash[:2])
 }
