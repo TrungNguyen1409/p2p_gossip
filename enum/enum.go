@@ -5,6 +5,11 @@ const (
 	GossipNotify       uint16 = 501
 	GossipNotification uint16 = 502
 	GossipValidation   uint16 = 503
+
+	PeerAnnounce     uint16 = 511
+	PeerLeave        uint16 = 512
+	PeerListRequest  uint16 = 513
+	PeerListResponse uint16 = 514
 )
 
 // Datatype is used to identify the application data Gossip spreads in the network.
