@@ -182,7 +182,7 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage) {
 	// testing client is currently sending announce message, not notification (fix client a bit)
 	// notification is not being send from peer to peer but from gossip to module
 	//how to know : peer -----announce----> peer ----- notification ----> module
-	// TODO: fix code according to realization above
+	//  fix code according to realization above
 	switch msg.Type {
 	case int32(enum.GossipAnnounce):
 		logger.Debug("announce")
