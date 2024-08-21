@@ -10,12 +10,6 @@ const (
 // Datatype is used to identify the application data Gossip spreads in the network.
 type Datatype uint16
 
-const (
-	Info Datatype = iota + 1
-	Warning
-	Error
-)
-
 // AnnounceMsg represents the structure for GOSSIP ANNOUNCE message
 type AnnounceMsg struct {
 	TTL      uint8    `json:"ttl"`
