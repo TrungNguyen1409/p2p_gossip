@@ -171,7 +171,6 @@ func (node *GossipNode) HandleConnection(conn net.Conn) {
 	node.handleGossipMessage(msg)
 }
 
-// TODO: write handler of different gossip message types here
 func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage) {
 	logger := logging.NewCustomLogger()
 	//check whether node has demanded Notify by checking whether incoming message has type of Notification 502
