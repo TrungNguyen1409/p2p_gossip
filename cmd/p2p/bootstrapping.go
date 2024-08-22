@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 /* --------------------------------- BOOTSTRAPPING ---------------------------------- */
@@ -64,4 +65,23 @@ func (node *GossipNode) getInitialPeers() error {
 	}
 	logger.InfoF("Initial peers fetched successfully: %v", peers)
 	return nil
+}
+
+func (node *GossipNode) periodicBootstrapping() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			logger := logging.NewCustomLogger()
+			logger.Info("Fetching new list of peers from bootstrapper...")
+
+			if err := node.getInitialPeers(); err != nil {
+				logger.ErrorF("Failed to fetch peers from bootstrapper: %v", err)
+			} else {
+				logger.Info("Successfully updated peers from bootstrapper.")
+			}
+		}
+	}
 }

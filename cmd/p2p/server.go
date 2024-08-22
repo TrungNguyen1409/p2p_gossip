@@ -74,6 +74,12 @@ func (node *GossipNode) Start() {
 		node.periodicGossip()
 	}()
 
+	go func() {
+		defer wg.Done()
+		// fetching every 5 seconds (read more paper to research about this) -> doesnt seem like good logic yet
+		node.periodicBootstrapping()
+	}()
+
 	wg.Wait()
 }
 
