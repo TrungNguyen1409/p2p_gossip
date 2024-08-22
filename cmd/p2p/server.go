@@ -199,19 +199,10 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage) {
 
 			node.notificationMsgChan <- newNotificationMsg
 			logger.Info("New NotificationMsg added to channel")
-
-			/*
-				node.peersMutex.RLock()
-				defer node.peersMutex.RUnlock()
-				for peer := range node.peers {
-					if err := send(peer, msg); err != nil {
-						logger.ErrorF("Failed to send message to %s: %v", peer, err)
-					}
-				}*/
-			// gossip further should be gossip futher even without module have notified, put out of the if condition
 		}
 		node.messageCache[msg.MessageId] = struct{}{}
 		logger.InfoF("New Message saved in Cache with ID: %s", msg.MessageId)
+		msg.Ttl -= 1
 		node.gossip(msg)
 
 	case int32(enum.PeerAnnounce):
