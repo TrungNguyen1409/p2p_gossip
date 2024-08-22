@@ -139,10 +139,6 @@ func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.Announce
 				Ttl:       int32(msg.TTL), // Assuming `Type` is a field in `AnnounceMsg`
 			}
 
-			//TODO: cache id of message
-			//messageCache[msg.Message] = struct{}{}
-			//TODO: handle message after types first? before gossip further
-
 			node.gossip(gossipMsg)
 		}
 	}
@@ -183,9 +179,16 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage) {
 	// notification is not being send from peer to peer but from gossip to module
 	//how to know : peer -----announce----> peer ----- notification ----> module
 	//  fix code according to realization above
+	logger.InfoF("Received message: %s", string(msg.Payload))
+
+	if _, seen := node.messageCache[msg.MessageId]; seen {
+		logger.Info("duplicated message")
+		return
+	}
+
 	switch msg.Type {
 	case int32(enum.GossipAnnounce):
-		logger.Debug("announce")
+		logger.Info("Receiving AnnounceMessage")
 		if node.datatypeMapper.CheckNotify(int(msg.Type)) {
 			logger.InfoF("Notification Message found: %s", msg.Type)
 
@@ -198,34 +201,30 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage) {
 			node.notificationMsgChan <- newNotificationMsg
 			logger.Info("New NotificationMsg added to channel")
 
+			/*
+				node.peersMutex.RLock()
+				defer node.peersMutex.RUnlock()
+				for peer := range node.peers {
+					if err := send(peer, msg); err != nil {
+						logger.ErrorF("Failed to send message to %s: %v", peer, err)
+					}
+				}*/
+			// gossip further should be gossip futher even without module have notified, put out of the if condition
 		}
+		node.messageCache[msg.MessageId] = struct{}{}
+		logger.InfoF("New Message saved in Cache with ID: %s", msg.MessageId)
+		node.gossip(msg)
+
 	case int32(enum.PeerAnnounce):
-		logger.Debug("notificaiton")
+		logger.Debug("Receiving PeerAnnounce : New Peer is Joining")
 	case int32(enum.PeerLeave):
-		logger.Debug("peer left")
+		logger.Debug("Receiving PeerLeave : A Peer is leaving")
 	case int32(enum.PeerListRequest):
-		logger.Debug("peer list request")
+		logger.Debug("Receiving PeerListRequest: A Peer is ")
 	case int32(enum.PeerListResponse):
-		logger.Debug("list response")
+		logger.Debug("Peer returning peer")
 	default:
 		logger.Debug("default")
 	}
 
-	if _, seen := node.messageCache[string(msg.Payload)]; seen {
-		logger.Info("duplicated message")
-		return
-	}
-
-	// Process message: dont save the whole message, use msg_id
-	//node.messageCache[string(msg.Payload)] = struct{}{}
-	logger.InfoF("Received message: %s", string(msg.Payload))
-
-	// Gossip the message to other peers
-	node.peersMutex.RLock()
-	defer node.peersMutex.RUnlock()
-	for peer := range node.peers {
-		if err := send(peer, msg); err != nil {
-			logger.ErrorF("Failed to send message to %s: %v", peer, err)
-		}
-	}
 }
