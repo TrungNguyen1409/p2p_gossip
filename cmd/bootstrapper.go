@@ -12,15 +12,17 @@ import (
 )
 
 type Bootstrapper struct {
-	mu      sync.RWMutex
-	peers   map[string]time.Time
-	timeout time.Duration
+	mu                  sync.RWMutex
+	peers               map[string]time.Time
+	timeout             time.Duration
+	cleanupListInterval time.Duration
 }
 
 func NewBootstrapper() *Bootstrapper {
 	return &Bootstrapper{
-		peers:   make(map[string]time.Time),
-		timeout: 1 * time.Second, // Set a timeout for node inactivity
+		peers:               make(map[string]time.Time),
+		timeout:             1 * time.Second,
+		cleanupListInterval: 1 * time.Minute, // Set a timeout for node inactivity
 	}
 }
 
@@ -102,9 +104,7 @@ func (b *Bootstrapper) HandleHeartbeat(w http.ResponseWriter, r *http.Request) {
 }
 
 func (b *Bootstrapper) RemoveInactivePeers() {
-	fmt.Println("activating remove inactive peer")
-	// time to start filtering inactive peers
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(b.cleanupListInterval)
 	defer ticker.Stop()
 
 	for {
