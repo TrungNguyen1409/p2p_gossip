@@ -21,14 +21,14 @@ func main() {
 		destination string
 		port        int
 		message     string
-		datatype    int
+		ttl         int
 	)
 
 	flag.BoolVar(&announce, "a", false, "Send a GOSSIP_ANNOUNCE message")
 	flag.BoolVar(&notify, "n", false, "Send a GOSSIP_NOTIFY message")
-	flag.IntVar(&datatype, "t", 1, "GOSSIP host module IP")
 	flag.StringVar(&destination, "d", "", "GOSSIP host module IP")
 	flag.IntVar(&port, "p", 0, "GOSSIP host module port")
+	flag.IntVar(&ttl, "ttl", 1, "GOSSIP host module port")
 	flag.StringVar(&message, "m", "", "GOSSIP host module port")
 
 	flag.Usage = func() {
@@ -57,11 +57,6 @@ Examples:
 		os.Exit(1)
 	}
 
-	if datatype < 0 {
-		logger.Info("Datatype must be uint16")
-		os.Exit(1)
-	}
-
 	if announce == true && notify == true {
 		logger.Info("Only announce or notify.")
 		os.Exit(1)
@@ -80,9 +75,9 @@ Examples:
 	}
 
 	if announce {
-		sendMessage(conn, enum.GossipAnnounce, createAnnounceMessage(uint16(datatype), message))
+		sendMessage(conn, enum.GossipAnnounce, createAnnounceMessage(message, uint8(ttl)))
 	} else if notify {
-		sendMessage(conn, enum.GossipNotify, createNotifyMessage(uint16(datatype)))
+		sendMessage(conn, enum.GossipNotify, createNotifyMessage())
 	}
 }
 
@@ -119,11 +114,12 @@ func sendMessage(conn net.Conn, messageType uint16, message []byte) {
 	logger.InfoF("Received response: %s\n", string(response[:n]))
 }
 
-func createAnnounceMessage(datatype uint16, message string) []byte {
-	const (
-		TTL      = uint8(1)
+func createAnnounceMessage(message string, ttl uint8) []byte {
+
+	var (
+		TTL      = ttl
 		RESERVED = uint8(1)
-		DATATYPE = uint16(1)
+		DATATYPE = enum.Datatype(500)
 	)
 
 	var buffer bytes.Buffer
@@ -136,10 +132,10 @@ func createAnnounceMessage(datatype uint16, message string) []byte {
 	return buffer.Bytes()
 }
 
-func createNotifyMessage(datatype uint16) []byte {
+func createNotifyMessage() []byte {
 	var (
 		RESERVED = uint16(1)
-		DATATYPE = enum.Datatype(datatype)
+		DATATYPE = enum.Datatype(501)
 	)
 
 	var buffer bytes.Buffer

@@ -31,6 +31,28 @@ func (am *DatatypeMapper) Add(addr net.Addr, datatype enum.Datatype) {
 	am.data[addr][datatype] = true
 }
 
+func (am *DatatypeMapper) CheckNotify(datatype int) bool {
+
+	fmt.Println("Current state of am.data map:", am.data)
+	//checking if notify exists
+	notifyMsgType := enum.Datatype(enum.GossipNotify)
+
+	am.mu.RLock()
+	defer am.mu.RUnlock()
+
+	// Iterate through the map and check for existence of Notify demand
+	for addr, datatypes := range am.data {
+		fmt.Printf("Checking address: %s with datatypes: %v\n", addr.String(), datatypes)
+		if _, exists := datatypes[notifyMsgType]; exists {
+			fmt.Printf("Datatype '%d' (GossipNotify) exists in the map for address %s.\n", datatype, addr.String())
+			return true
+		}
+	}
+
+	fmt.Printf("Datatype '%d' (GossipNotify) does not exist in any address in the map.\n", datatype)
+	return false
+}
+
 // Print displays the current state of the DatatypeMapper.
 func (am *DatatypeMapper) Print() {
 	am.mu.RLock()

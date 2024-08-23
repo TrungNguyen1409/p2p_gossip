@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/google/uuid"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/common"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
@@ -13,15 +13,16 @@ import (
 )
 
 type GossipNode struct {
-	p2pAddress      string
-	peers           map[string]struct{}
-	peersMutex      sync.RWMutex
-	messageCache    map[string]struct{}
-	fanout          int
-	gossipInterval  time.Duration
-	announceMsgChan chan enum.AnnounceMsg
-	datatypeMapper  *common.DatatypeMapper
-	bootstrapURL    string
+	p2pAddress          string
+	peers               map[string]struct{}
+	peersMutex          sync.RWMutex
+	messageCache        map[string]struct{}
+	fanout              int
+	gossipInterval      time.Duration
+	announceMsgChan     chan enum.AnnounceMsg
+	notificationMsgChan chan enum.NotificationMsg
+	datatypeMapper      *common.DatatypeMapper
+	bootstrapURL        string
 }
 
 const (
@@ -29,21 +30,22 @@ const (
 	gossipInterval = 5 * time.Second
 )
 
-func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan enum.AnnounceMsg, datatypeMapper *common.DatatypeMapper, bootstrapURL string) *GossipNode {
+func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan enum.AnnounceMsg, notificationMsgChan chan enum.NotificationMsg, datatypeMapper *common.DatatypeMapper, bootstrapURL string) *GossipNode {
 	peers := make(map[string]struct{})
 	for _, peer := range initialPeers {
 		peers[peer] = struct{}{}
 	}
 
 	return &GossipNode{
-		p2pAddress:      p2pAddress,
-		peers:           peers,
-		announceMsgChan: announceMsgChan,
-		messageCache:    make(map[string]struct{}),
-		fanout:          fanout,
-		gossipInterval:  gossipInterval,
-		datatypeMapper:  datatypeMapper,
-		bootstrapURL:    bootstrapURL,
+		p2pAddress:          p2pAddress,
+		peers:               peers,
+		announceMsgChan:     announceMsgChan,
+		notificationMsgChan: notificationMsgChan,
+		messageCache:        make(map[string]struct{}),
+		fanout:              fanout,
+		gossipInterval:      gossipInterval,
+		datatypeMapper:      datatypeMapper,
+		bootstrapURL:        bootstrapURL,
 	}
 }
 
@@ -59,17 +61,23 @@ func (node *GossipNode) Start() {
 
 	go func() {
 		defer wg.Done()
-		node.listen(node.p2pAddress, node.handleMessage, &wg)
+		node.listen(node.p2pAddress, &wg)
 	}()
 
 	go func() {
 		defer wg.Done()
-		node.listenAnnounceMessage(node.announceMsgChan, &wg)
+		node.listenAnnounceMessage(node.announceMsgChan)
 	}()
 
 	go func() {
 		defer wg.Done()
 		node.periodicGossip()
+	}()
+
+	go func() {
+		defer wg.Done()
+		// fetching every 5 seconds (read more paper to research about this) -> doesnt seem like good logic yet
+		node.periodicBootstrapping()
 	}()
 
 	wg.Wait()
@@ -79,7 +87,7 @@ func (node *GossipNode) Start() {
 // - listen to messages from other peers
 // - gossip the message away
 // - check for the type of message that should be propagated, as requested from api of this peer
-func (node *GossipNode) listen(p2pAddress string, msgHandler func(*pb.GossipMessage), wg *sync.WaitGroup) {
+func (node *GossipNode) listen(p2pAddress string, wg *sync.WaitGroup) {
 	logger := logging.NewCustomLogger()
 
 	ln, err := net.Listen("tcp", p2pAddress)
@@ -94,7 +102,6 @@ func (node *GossipNode) listen(p2pAddress string, msgHandler func(*pb.GossipMess
 
 	logger.InfoF("P2P Server is listening on: %v", ln.Addr())
 
-	// Register with Bootstrapper
 	if err := node.registerWithBootstrapper(ln.Addr().String()); err != nil {
 		logger.FatalF("Failed to register with bootstrapper: %v", err)
 	}
@@ -113,38 +120,37 @@ func (node *GossipNode) listen(p2pAddress string, msgHandler func(*pb.GossipMess
 			continue
 		}
 		wg.Add(1)
-		go HandleConnection(conn, msgHandler)
+		go node.HandleConnection(conn)
 	}
 }
 
-// listenAnnounceMessage: listen to announce message and gossip it away.
-func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.AnnounceMsg, wg *sync.WaitGroup) {
+// listenAnnounceMessage: listen to announce message and gossip it away. ahh this function is to take announceMsg from the channel (used or intrad node call)
+// currently cannot distinguish between announce and notify
+func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.AnnounceMsg) {
 	logger := logging.NewCustomLogger()
 
 	for {
 		msg, ok := <-announceMsgChan
 		if !ok {
-			// Channel is closed, exit the loop
 			logger.Info("Channel closed, exiting loop")
 			return
 		} else {
 			logger.InfoF("P2P Server: Received a message: %+v\n", msg)
 
-			// handle gossip algorithm here!
 			gossipMsg := &pb.GossipMessage{
-				Payload: []byte("hello"),
-				From:    "localhost", // Replace with actual address if needed
+				MessageId: generate16BitHash(uuid.New().String()),
+				Payload:   []byte(msg.Data), // Assuming `Content` is a field in `AnnounceMsg`
+				From:      node.p2pAddress,  // Use the node's own address
+				Type:      int32(msg.DataType),
+				Ttl:       int32(msg.TTL), // Assuming `Type` is a field in `AnnounceMsg`
 			}
-
-			// Add message to cache to prevent reprocessing
-			//messageCache[msg.Message] = struct{}{}
 
 			node.gossip(gossipMsg)
 		}
 	}
 }
 
-func HandleConnection(conn net.Conn, msgHandler func(*pb.GossipMessage)) {
+func (node *GossipNode) HandleConnection(conn net.Conn) {
 	logger := logging.NewCustomLogger()
 
 	defer func(conn net.Conn) {
@@ -168,62 +174,53 @@ func HandleConnection(conn net.Conn, msgHandler func(*pb.GossipMessage)) {
 		return
 	}
 
-	msgHandler(msg)
+	node.handleGossipMessage(msg)
 }
 
-func (node *GossipNode) handleMessage(msg *pb.GossipMessage) {
+func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage) {
 	logger := logging.NewCustomLogger()
-
-	if _, seen := node.messageCache[string(msg.Payload)]; seen {
-		logger.Info("duplicated message")
-		return // already seen this message
-	}
-
-	// Process message
-	node.messageCache[string(msg.Payload)] = struct{}{}
+	//check whether node has demanded Notify by checking whether incoming message has type of Notification 502
+	// testing client is currently sending announce message, not notification (fix client a bit)
+	// notification is not being send from peer to peer but from gossip to module
+	//how to know : peer -----announce----> peer ----- notification ----> module
+	//  fix code according to realization above
 	logger.InfoF("Received message: %s", string(msg.Payload))
 
-	// Gossip the message to other peers
-	node.peersMutex.RLock()
-	defer node.peersMutex.RUnlock()
-	for peer := range node.peers {
-		if err := send(peer, msg); err != nil {
-			logger.ErrorF("Failed to send message to %s: %v", peer, err)
+	if _, seen := node.messageCache[msg.MessageId]; seen {
+		logger.Info("duplicated message")
+		return
+	}
+
+	switch msg.Type {
+	case int32(enum.GossipAnnounce):
+		logger.Info("Receiving AnnounceMessage")
+		if node.datatypeMapper.CheckNotify(int(msg.Type)) {
+			logger.InfoF("Notification Message found: %s", msg.Type)
+
+			newNotificationMsg := enum.NotificationMsg{
+				MessageID: msg.MessageId,
+				DataType:  enum.Datatype(enum.GossipNotification),
+				Data:      string(msg.Payload),
+			}
+
+			node.notificationMsgChan <- newNotificationMsg
+			logger.Info("New NotificationMsg added to channel")
 		}
-	}
-}
+		node.messageCache[msg.MessageId] = struct{}{}
+		logger.InfoF("New Message saved in Cache with ID: %s", msg.MessageId)
+		msg.Ttl -= 1
+		node.gossip(msg)
 
-func serialize(msg *pb.GossipMessage) ([]byte, error) {
-	return proto.Marshal(msg)
-}
-
-func deserialize(data []byte) (*pb.GossipMessage, error) {
-	var msg pb.GossipMessage
-	err := proto.Unmarshal(data, &msg)
-	if err != nil {
-		return nil, err
-	}
-	return &msg, nil
-}
-
-// send sends a message to a peer
-func send(address string, msg *pb.GossipMessage) error {
-	conn, err := net.Dial("tcp", address)
-	if err != nil {
-		return err
+	case int32(enum.PeerAnnounce):
+		logger.Debug("Receiving PeerAnnounce : New Peer is Joining")
+	case int32(enum.PeerLeave):
+		logger.Debug("Receiving PeerLeave : A Peer is leaving")
+	case int32(enum.PeerListRequest):
+		logger.Debug("Receiving PeerListRequest: A Peer is ")
+	case int32(enum.PeerListResponse):
+		logger.Debug("Peer returning peer")
+	default:
+		logger.Debug("default")
 	}
 
-	defer func(conn net.Conn) {
-		err := conn.Close()
-		if err != nil {
-		}
-	}(conn)
-
-	data, err := serialize(msg)
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Write(data)
-	return err
 }

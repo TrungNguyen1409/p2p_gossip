@@ -15,8 +15,12 @@ import (
 /* --------------------------------- GOSSIPPING ---------------------------------- */
 
 func (node *GossipNode) gossip(msg *pb.GossipMessage) {
-
 	logger := logging.NewCustomLogger()
+	logger.DebugF(string(msg.Ttl))
+	if msg.Ttl < 1 {
+		logger.Debug("Message TTL expired, not gossiping further.")
+		return
+	}
 
 	logger.Debug("Prepare gossiping...")
 	node.peersMutex.RLock()

@@ -11,26 +11,26 @@ import (
 )
 
 type Server struct {
-	apiAddress      string
-	announceMsgChan chan enum.AnnounceMsg
-	notifyMsgChan   chan enum.NotifyMsg
-	datatypeMapper  *common.DatatypeMapper
+	apiAddress          string
+	announceMsgChan     chan enum.AnnounceMsg
+	notificationMsgChan chan enum.NotificationMsg
+	datatypeMapper      *common.DatatypeMapper
 }
 
-func NewServer(apiAddress string, announceMsgChan chan enum.AnnounceMsg, notifyMsgChan chan enum.NotifyMsg, datatypeMapper *common.DatatypeMapper) *Server {
-	return &Server{apiAddress: apiAddress, announceMsgChan: announceMsgChan, notifyMsgChan: notifyMsgChan, datatypeMapper: datatypeMapper}
+func NewServer(apiAddress string, announceMsgChan chan enum.AnnounceMsg, notificationMsgChan chan enum.NotificationMsg, datatypeMapper *common.DatatypeMapper) *Server {
+	return &Server{apiAddress: apiAddress, announceMsgChan: announceMsgChan, notificationMsgChan: notificationMsgChan, datatypeMapper: datatypeMapper}
 }
 
 func (s *Server) Start() {
 	var wg sync.WaitGroup
 
-	listen(s.apiAddress, &wg, s.announceMsgChan, s.notifyMsgChan, s.datatypeMapper)
+	listen(s.apiAddress, &wg, s.announceMsgChan, s.notificationMsgChan, s.datatypeMapper)
 
 	// Wait for all goroutines to finish
 	wg.Wait()
 }
 
-func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.AnnounceMsg, notifyMsgChan chan enum.NotifyMsg, datatypeMapper *common.DatatypeMapper) {
+func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.AnnounceMsg, notificationMsgChan chan enum.NotificationMsg, datatypeMapper *common.DatatypeMapper) {
 	listener, listenerErr := net.Listen("tcp", apiAddress)
 
 	logger := logging.NewCustomLogger()
@@ -55,6 +55,20 @@ func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.Ann
 	logger.InfoF("API Server is listening on: %v", listener.Addr())
 
 	// listen to notify message and send it back to other module here
+	go func(ch <-chan enum.NotificationMsg) {
+		for {
+			// Wait for a message to be received on the channel
+			msg, ok := <-ch
+			if !ok {
+				// If the channel is closed, exit the goroutine
+				logger.InfoF("Channel closed, exiting goroutine")
+				return
+			}
+			// Print the received message
+			logger.InfoF("Received message:", msg)
+		}
+
+	}(notificationMsgChan)
 
 	for {
 		conn, err := listener.Accept()
