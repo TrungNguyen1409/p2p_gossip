@@ -5,10 +5,11 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
 	"net"
 	"os"
+
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
 )
 
 func main() {
@@ -22,6 +23,7 @@ func main() {
 		port        int
 		message     string
 		ttl         int
+		datatype    int
 	)
 
 	flag.BoolVar(&announce, "a", false, "Send a GOSSIP_ANNOUNCE message")
@@ -29,7 +31,8 @@ func main() {
 	flag.StringVar(&destination, "d", "", "GOSSIP host module IP")
 	flag.IntVar(&port, "p", 0, "GOSSIP host module port")
 	flag.IntVar(&ttl, "ttl", 1, "GOSSIP host module port")
-	flag.StringVar(&message, "m", "", "GOSSIP host module port")
+	flag.StringVar(&message, "m", "", "GOSSIP_ANNOUNCE payload message")
+	flag.IntVar(&datatype, "t", 1, "GOSSIP_NOTIFY datatype")
 
 	flag.Usage = func() {
 		_, _ = fmt.Fprintf(os.Stderr, "Usage: %s [options]\n", os.Args[0])
@@ -75,9 +78,9 @@ Examples:
 	}
 
 	if announce {
-		sendMessage(conn, enum.GossipAnnounce, createAnnounceMessage(message, uint8(ttl)))
+		sendMessage(conn, enum.GossipAnnounce, createAnnounceMessage(message, uint8(ttl), datatype))
 	} else if notify {
-		sendMessage(conn, enum.GossipNotify, createNotifyMessage())
+		sendMessage(conn, enum.GossipNotify, createNotifyMessage(datatype))
 	}
 }
 
@@ -87,7 +90,6 @@ func sendMessage(conn net.Conn, messageType uint16, message []byte) {
 	defer func(conn net.Conn) {
 		err := conn.Close()
 		if err != nil {
-
 		}
 	}(conn)
 
@@ -114,12 +116,12 @@ func sendMessage(conn net.Conn, messageType uint16, message []byte) {
 	logger.InfoF("Received response: %s\n", string(response[:n]))
 }
 
-func createAnnounceMessage(message string, ttl uint8) []byte {
+func createAnnounceMessage(message string, ttl uint8, datatype int) []byte {
 
 	var (
 		TTL      = ttl
 		RESERVED = uint8(1)
-		DATATYPE = enum.Datatype(500)
+		DATATYPE = enum.Datatype(datatype)
 	)
 
 	var buffer bytes.Buffer
@@ -132,10 +134,10 @@ func createAnnounceMessage(message string, ttl uint8) []byte {
 	return buffer.Bytes()
 }
 
-func createNotifyMessage() []byte {
+func createNotifyMessage(datatype int) []byte {
 	var (
 		RESERVED = uint16(1)
-		DATATYPE = enum.Datatype(501)
+		DATATYPE = enum.Datatype(datatype)
 	)
 
 	var buffer bytes.Buffer

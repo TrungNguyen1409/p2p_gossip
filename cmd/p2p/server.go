@@ -1,15 +1,14 @@
 package p2p
 
 import (
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/pow"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/common"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/pow"
 	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
 )
 
@@ -77,7 +76,7 @@ func (node *GossipNode) Start() {
 
 	go func() {
 		defer wg.Done()
-		// fetching every 5 seconds (read more paper to research about this) -> doesnt seem like good logic yet
+		// fetching every 5 seconds (read more paper to research about this) -> doesn't seem like good logic yet
 		node.periodicBootstrapping()
 	}()
 
@@ -98,8 +97,6 @@ func (node *GossipNode) listen(p2pAddress string, wg *sync.WaitGroup) {
 
 	ln, err := net.Listen("tcp", p2pAddress)
 	if err != nil {
-		logger.ErrorF("Failed to start listener for p2p server: %v\n\n", err)
-		logger.Info("Default port not available, finding available port...")
 		ln, err = net.Listen("tcp", "localhost:0")
 		if err != nil {
 			logger.FatalF("failed to find an available port: %v", err)
@@ -121,16 +118,18 @@ func (node *GossipNode) listen(p2pAddress string, wg *sync.WaitGroup) {
 
 	for {
 		conn, err1 := ln.Accept()
+		logger.Host(conn.LocalAddr().String())
+		logger.Client(conn.RemoteAddr().String())
 		if err1 != nil {
 			logger.ErrorF("Failed to accept connection: %v", err)
 			continue
 		}
 		wg.Add(1)
-		go node.HandleConnection(conn)
+		go node.HandleConnection(conn, logger)
 	}
 }
 
-// listenAnnounceMessage: listen to announce message and gossip it away. ahh this function is to take announceMsg from the channel (used or intrad node call)
+// listenAnnounceMessage: listen to announce message and gossip it away. this function is to take announceMsg from the channel (used or intrad node call)
 // currently cannot distinguish between announce and notify
 func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.AnnounceMsg) {
 	logger := logging.NewCustomLogger()
@@ -144,21 +143,19 @@ func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.Announce
 			logger.InfoF("P2P Server: Received a message: %+v\n", msg)
 
 			gossipMsg := &pb.GossipMessage{
-				MessageId: generate16BitHash(uuid.New().String()),
+				MessageId: uint32(generate16BitRandomInteger()),
 				Payload:   []byte(msg.Data), // Assuming `Content` is a field in `AnnounceMsg`
 				From:      node.p2pAddress,  // Use the node's own address
 				Type:      int32(msg.DataType),
 				Ttl:       int32(msg.TTL), // Assuming `Type` is a field in `AnnounceMsg`
 			}
 
-			node.gossip(gossipMsg)
+			node.gossip(gossipMsg, logger)
 		}
 	}
 }
 
-func (node *GossipNode) HandleConnection(conn net.Conn) {
-	logger := logging.NewCustomLogger()
-
+func (node *GossipNode) HandleConnection(conn net.Conn, logger *logging.Logger) {
 	defer func(conn net.Conn) {
 		err := conn.Close()
 		if err != nil {
@@ -184,45 +181,42 @@ func (node *GossipNode) HandleConnection(conn net.Conn) {
 		logger.Error("Failed to validate nonce")
 		return
 	}
-	node.handleGossipMessage(msg)
+	node.handleGossipMessage(msg, logger)
 }
 
-func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage) {
-	logger := logging.NewCustomLogger()
+func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage, logger *logging.Logger) {
 	//check whether node has demanded Notify by checking whether incoming message has type of Notification 502
 	// testing client is currently sending announce message, not notification (fix client a bit)
-	// notification is not being send from peer to peer but from gossip to module
+	// notification is not being sent from peer to peer but from gossip to module
 	//how to know : peer -----announce----> peer ----- notification ----> module
 	//  fix code according to realization above
-	logger.InfoF("Received message: %s", string(msg.Payload))
+	logger.InfoF("Received gossip message: %s", string(msg.Payload))
 
-	if _, seen := node.messageCache[msg.MessageId]; seen {
-		logger.Info("duplicated message")
+	/*if _, seen := node.messageCache[msg.MessageId]; seen {
+		logger.Debug("Duplicated gossip message")
 		return
-	}
+	}*/
 
-	switch msg.Type {
-	case int32(enum.GossipAnnounce):
-		logger.Info("Receiving AnnounceMessage")
-		if node.datatypeMapper.CheckNotify(int(msg.Type)) {
-			logger.InfoF("Notification Message found: %s", msg.Type)
+	if node.datatypeMapper.CheckNotify(enum.Datatype(msg.Type)) {
+		logger.DebugF("Notification Message found: %s", msg.Type)
 
-			newNotificationMsg := enum.NotificationMsg{
-				MessageID: msg.MessageId,
-				DataType:  enum.Datatype(enum.GossipNotification),
-				Data:      string(msg.Payload),
-			}
-
-			node.notificationMsgChan <- newNotificationMsg
-			logger.Info("New NotificationMsg added to channel")
+		newNotificationMsg := enum.NotificationMsg{
+			MessageID: uint16(msg.MessageId),
+			DataType:  enum.Datatype(msg.Type),
+			Data:      string(msg.Payload),
 		}
-		node.messageCache[msg.MessageId] = struct{}{}
-		logger.InfoF("New Message saved in Cache with ID: %s", msg.MessageId)
-		msg.Ttl -= 1
 
-		node.gossip(msg)
+		node.notificationMsgChan <- newNotificationMsg
+		logger.Info("New NotificationMsg added to channel")
+	}
+	/*node.messageCache[msg.MessageId] = struct{}{}
+	logger.InfoF("New Message saved in Cache with ID: %s", msg.MessageId)*/
 
-	case int32(enum.PeerAnnounce):
+	msg.Ttl -= 1
+
+	node.gossip(msg, logger)
+
+	/*case int32(enum.PeerAnnounce):
 		logger.Debug("Receiving PeerAnnounce : New Peer is Joining")
 	case int32(enum.PeerLeave):
 		logger.Debug("Receiving PeerLeave : A Peer is leaving")
@@ -234,5 +228,11 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage) {
 	default:
 		logger.Debug("default")
 	}
+		node.notificationMsgChan <- newNotificationMsg
+	}
 
+	node.messageCache[msg.MessageId] = struct{}{}
+	logger.InfoF("New Message saved in Cache with ID: %s", msg.MessageId)
+	msg.Ttl -= 1
+	node.gossip(msg, logger)*/
 }

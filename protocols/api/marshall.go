@@ -33,7 +33,7 @@ func (h *Handler) unmarshallAnnounce(readBuffer *bytes.Reader, msg *enum.Announc
 		msg.Data = string(msgBuf)
 	}
 
-	h.logger.InfoF("Received message %v", *msg)
+	h.logger.InfoF("Received GOSSIP_ANNOUNCE message %v", *msg)
 
 	return nil
 }
@@ -50,7 +50,7 @@ func (h *Handler) unmarshallNotify(readBuffer *bytes.Reader, msg *enum.NotifyMsg
 		return err
 	}
 
-	h.logger.InfoF("Received message %v", *msg)
+	h.logger.InfoF("Received GOSSIP_NOTIFY message %v", *msg)
 
 	return nil
 }

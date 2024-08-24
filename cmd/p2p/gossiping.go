@@ -3,23 +3,22 @@ package p2p
 import (
 	"encoding/json"
 	"fmt"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/pow"
-	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
 	"io"
 	"math/rand"
 	"net/http"
 	"strings"
 	"time"
+
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
+	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
 )
 
 /* --------------------------------- GOSSIPPING ---------------------------------- */
 
-func (node *GossipNode) gossip(msg *pb.GossipMessage) {
-
+func (node *GossipNode) gossip(msg *pb.GossipMessage, logger *logging.Logger) {
 	pow.CalculateAndAddNonce(msg)
 
-	logger := logging.NewCustomLogger()
 	logger.DebugF(string(msg.Ttl))
 	if msg.Ttl < 1 {
 		logger.Debug("Message TTL expired, not gossiping further.")
@@ -82,13 +81,13 @@ func (node *GossipNode) periodicGossip() {
 			node.peersMutex.RUnlock()
 
 			/*for _, peer := range peers {
-				go node.sendPeerList(peer)
+				go node.sendPeerList(peer, logger)
 			}*/
 		}
 	}
 }
 
-func (node *GossipNode) sendPeerList(peerAddress string) {
+func (node *GossipNode) sendPeerList(peerAddress string, logger *logging.Logger) {
 	node.peersMutex.RLock()
 	peerList := make([]string, 0, len(node.peers))
 	for peer := range node.peers {
@@ -98,14 +97,12 @@ func (node *GossipNode) sendPeerList(peerAddress string) {
 
 	data, err := json.Marshal(peerList)
 	if err != nil {
-		logger := logging.NewCustomLogger()
 		logger.ErrorF("Failed to marshal peer list: %v", err)
 		return
 	}
 
 	resp, err := http.Post(fmt.Sprintf("http://%s/gossip", peerAddress), "application/json", strings.NewReader(string(data)))
 	if err != nil || resp.StatusCode != http.StatusOK {
-		logger := logging.NewCustomLogger()
 		logger.ErrorF("Failed to send gossip to %s: %v", peerAddress, err)
 		return
 	}
