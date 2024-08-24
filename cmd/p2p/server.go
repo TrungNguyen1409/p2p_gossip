@@ -81,6 +81,11 @@ func (node *GossipNode) Start() {
 		node.periodicBootstrapping()
 	}()
 
+	go func() {
+		defer wg.Done()
+		node.sendHeartbeat()
+	}()
+
 	wg.Wait()
 }
 
@@ -221,6 +226,7 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage) {
 		logger.Debug("Receiving PeerAnnounce : New Peer is Joining")
 	case int32(enum.PeerLeave):
 		logger.Debug("Receiving PeerLeave : A Peer is leaving")
+		// these 2 might not relevant to be handled as gossip message
 	case int32(enum.PeerListRequest):
 		logger.Debug("Receiving PeerListRequest: A Peer is ")
 	case int32(enum.PeerListResponse):
