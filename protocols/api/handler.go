@@ -4,41 +4,34 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
-	"log"
 	"net"
 
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/common"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
 )
 
 type Handler struct {
-	conn            net.Conn
-	logger          *logging.Logger
-	announceMsgChan chan enum.AnnounceMsg
-	datatypeMapper  *common.DatatypeMapper
+	conn                net.Conn
+	logger              *logging.Logger
+	announceMsgChan     chan enum.AnnounceMsg
+	notificationMsgChan chan enum.NotificationMsg
+	datatypeMapper      *common.DatatypeMapper
 }
 
-func NewHandler(conn net.Conn, logger *logging.Logger, announceMsgChan chan enum.AnnounceMsg, datatypeMapper *common.DatatypeMapper) *Handler {
-	return &Handler{conn: conn, logger: logger, announceMsgChan: announceMsgChan, datatypeMapper: datatypeMapper}
+func NewHandler(conn net.Conn, logger *logging.Logger, announceMsgChan chan enum.AnnounceMsg, notificationMsgChan chan enum.NotificationMsg, datatypeMapper *common.DatatypeMapper) *Handler {
+	return &Handler{conn: conn, logger: logger, announceMsgChan: announceMsgChan, notificationMsgChan: notificationMsgChan, datatypeMapper: datatypeMapper}
 }
 
 // Handle handles incoming connections and dispatches messages based on type
 func (h *Handler) Handle() {
-	defer func() {
-		if err := h.conn.Close(); err != nil {
-			h.logger.ErrorF("Error closing connection: %v", err)
-		}
-		h.logger.Info("Connection closed")
-	}()
+	h.logger.InfoF("Open connection with %s\n", h.conn.RemoteAddr())
 
-	h.conn.RemoteAddr()
+	messageBuffer := make([]byte, 1024)
+	readSize, err := h.conn.Read(messageBuffer)
 
-	h.logger.Info("Open connection")
+	h.logger.DebugF("Reading from %s\n", h.conn.RemoteAddr())
 
-	messageBuffer := new(bytes.Buffer)
-
-	readSize, err := messageBuffer.ReadFrom(h.conn)
 	if err != nil {
 		h.logger.ErrorF("Error reading from connection: %v\n", err)
 		return
@@ -52,7 +45,7 @@ func (h *Handler) Handle() {
 		return
 	}
 
-	reader := bytes.NewReader(messageBuffer.Bytes())
+	reader := bytes.NewReader(messageBuffer)
 
 	var size uint16
 	var messageType uint16
@@ -63,7 +56,7 @@ func (h *Handler) Handle() {
 		return
 	}
 
-	if int64(size) != readSize {
+	if int(size) != readSize {
 		h.sendResponse("Wrong message size.\n")
 		return
 	}
@@ -76,31 +69,27 @@ func (h *Handler) Handle() {
 
 	// Handle message based on type
 	switch messageType {
+	case enum.GossipNotify:
+		if err = h.notifyHandler(reader); err != nil {
+			h.logger.ErrorF("Error handling NOTIFY message: %v\n", err)
+		}
+		h.datatypeMapper.Print()
 	case enum.GossipAnnounce:
 		if err = h.announceHandler(reader); err != nil {
 			h.logger.ErrorF("Error handling ANNOUNCE message: %v\n", err)
 		}
-	case enum.GossipNotify:
-		if err = h.notifyHandler(reader); err != nil {
-			log.Printf("Error handling NOTIFY message: %v\n", err)
-		}
-	case enum.GossipNotification:
-		if err = h.notificationHandler(reader); err != nil {
-			log.Printf("Error handling NOTIFICATION message: %v\n", err)
-		}
-	case enum.GossipValidation:
-		if err = h.validationHandler(reader); err != nil {
-			log.Printf("Error handling VALIDATION message: %v\n", err)
-		}
-	default:
-		h.sendResponse(fmt.Sprintf("Unknown message type %d.\n", messageType))
 	}
-
-	h.datatypeMapper.Print()
 }
 
 // announceHandler handles AnnounceMsg
 func (h *Handler) announceHandler(reader *bytes.Reader) error {
+	defer func() {
+		if err := h.conn.Close(); err != nil {
+			h.logger.ErrorF("Error closing connection: %v", err)
+		}
+		h.logger.Info("Connection closed")
+	}()
+
 	var msg enum.AnnounceMsg
 	if err := h.unmarshallAnnounce(reader, &msg); err != nil {
 		return fmt.Errorf("failed to unmarshal announce message: %w", err)
@@ -118,6 +107,13 @@ func (h *Handler) announceHandler(reader *bytes.Reader) error {
 
 // notifyHandler handles NotifyMsg
 func (h *Handler) notifyHandler(reader *bytes.Reader) error {
+	defer func() {
+		if err := h.conn.Close(); err != nil {
+			h.logger.ErrorF("Error closing connection: %v", err)
+		}
+		h.logger.Info("Connection closed")
+	}()
+
 	var msg enum.NotifyMsg
 	if err := h.unmarshallNotify(reader, &msg); err != nil {
 		return fmt.Errorf("failed to unmarshal notify message: %w", err)
@@ -125,27 +121,20 @@ func (h *Handler) notifyHandler(reader *bytes.Reader) error {
 
 	h.datatypeMapper.Add(h.conn.RemoteAddr(), msg.DataType)
 
-	return nil
-}
-
-// NotificationHandler handles NotificationMsg
-func (h *Handler) notificationHandler(reader *bytes.Reader) error {
-	var msg enum.NotificationMsg
-	if err := h.unmarshallNotification(reader, &msg); err != nil {
-		return fmt.Errorf("failed to unmarshal notification message: %w", err)
+	for {
+		// Wait for a message to be received on the channel
+		notificationMsg, ok := <-h.notificationMsgChan
+		if !ok {
+			// If the channel is closed, exit the loop
+			return fmt.Errorf("notification channel closed")
+		} else {
+			h.logger.Info("Got notification message")
+			h.logger.InfoF("%d and %d \n", notificationMsg.DataType, msg.DataType)
+			if notificationMsg.DataType == msg.DataType {
+				sendNotificationMessage(h.conn, notificationMsg, h.logger)
+			}
+		}
 	}
-
-	return nil
-}
-
-// ValidationHandler handles ValidationMsg
-func (h *Handler) validationHandler(reader *bytes.Reader) error {
-	var msg enum.ValidationMsg
-	if err := h.unmarshallValidation(reader, &msg); err != nil {
-		return fmt.Errorf("failed to unmarshal validation message: %w", err)
-	}
-
-	return nil
 }
 
 func (h *Handler) sendResponse(s string) {

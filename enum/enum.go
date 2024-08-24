@@ -34,7 +34,7 @@ type NotifyMsg struct {
 // NotificationMsg represents the structure for GOSSIP NOTIFICATION message
 type NotificationMsg struct {
 	// msgID or uint16
-	MessageID string   `json:"message_id"`
+	MessageID uint16   `json:"message_id"`
 	DataType  Datatype `json:"data_type"`
 	Data      string   `json:"data"`
 }

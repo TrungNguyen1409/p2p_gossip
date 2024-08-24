@@ -2,5 +2,6 @@
 .vscode
 .task
 client
+client2
 server
 bootstrapper

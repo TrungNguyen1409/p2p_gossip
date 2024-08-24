@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"github.com/golang/protobuf/proto"
 	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
+	"math/rand"
 	"net"
+	"time"
 )
 
 // serialize converts a GossipMessage into a byte slice.
@@ -48,4 +50,12 @@ func send(address string, msg *pb.GossipMessage) error {
 func generate16BitHash(input string) string {
 	hash := sha256.Sum256([]byte(input))
 	return hex.EncodeToString(hash[:2])
+}
+
+func generate16BitRandomInteger() uint16 {
+	// Create a new rand.Rand instance with a seed based on current time
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// Generate a 16-bit random integer
+	return uint16(rng.Intn(65536)) // 65536 is 2^16
 }

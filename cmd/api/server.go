@@ -36,9 +36,6 @@ func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.Ann
 	logger := logging.NewCustomLogger()
 
 	if listenerErr != nil {
-		logger.ErrorF("Error starting TCP server: %v", listenerErr)
-		logger.InfoF("Error starting TCP P2P server: %v\n", listenerErr)
-		logger.Info("Default port not available, finding available port...")
 		listener, listenerErr = net.Listen("tcp", "localhost:0")
 		if listenerErr != nil {
 			logger.ErrorF("failed to find an available port: %v", listenerErr)
@@ -53,22 +50,6 @@ func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.Ann
 	}(listener)
 
 	logger.InfoF("API Server is listening on: %v", listener.Addr())
-
-	// listen to notify message and send it back to other module here
-	go func(ch <-chan enum.NotificationMsg) {
-		for {
-			// Wait for a message to be received on the channel
-			msg, ok := <-ch
-			if !ok {
-				// If the channel is closed, exit the goroutine
-				logger.InfoF("Channel closed, exiting goroutine")
-				return
-			}
-			// Print the received message
-			logger.InfoF("Received message:", msg)
-		}
-
-	}(notificationMsgChan)
 
 	for {
 		conn, err := listener.Accept()
@@ -85,7 +66,7 @@ func listen(apiAddress string, wg *sync.WaitGroup, announceMsgChan chan enum.Ann
 			defer wg.Done() // Decrement the counter when the goroutine completes
 			logger.Host(conn.LocalAddr().String())
 			logger.Client(conn.RemoteAddr().String())
-			handler := api.NewHandler(conn, logger, announceMsgChan, datatypeMapper)
+			handler := api.NewHandler(conn, logger, announceMsgChan, notificationMsgChan, datatypeMapper)
 			handler.Handle()
 		}(conn)
 	}
