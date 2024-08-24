@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/pow"
 	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
 	"io"
 	"math/rand"
@@ -15,6 +16,9 @@ import (
 /* --------------------------------- GOSSIPPING ---------------------------------- */
 
 func (node *GossipNode) gossip(msg *pb.GossipMessage) {
+
+	pow.CalculateAndAddNonce(msg)
+
 	logger := logging.NewCustomLogger()
 	logger.DebugF(string(msg.Ttl))
 	if msg.Ttl < 1 {

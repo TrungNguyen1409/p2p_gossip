@@ -69,7 +69,7 @@ func (node *GossipNode) getInitialPeers() error {
 }
 
 func (node *GossipNode) periodicBootstrapping() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
 
 	for {

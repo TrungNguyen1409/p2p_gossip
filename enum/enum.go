@@ -12,6 +12,8 @@ const (
 	PeerListResponse uint16 = 514
 )
 
+var Difficulty = "0000"
+
 // Datatype is used to identify the application data Gossip spreads in the network.
 type Datatype uint16
 

@@ -10,4 +10,5 @@ message GossipMessage {
   bytes payload = 3;
   int32 ttl = 4;
   string message_id = 5;
+  uint64 nonce = 6;
 }

@@ -1,14 +1,17 @@
 package main
 
 import (
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/robfig/config"
+
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/cmd/api"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/cmd/p2p"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/common"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
 )
 
 type Server struct {
@@ -25,6 +28,18 @@ func NewServer() *Server {
 	configFile, readErr := config.ReadDefault("configs/config.ini")
 	if readErr != nil {
 		logger.FatalF("Can not find config.ini %v", readErr)
+	}
+
+	difficulty, parseErr := configFile.String("gossip", "difficulty")
+	if parseErr != nil {
+		logger.FatalF("Can not read from config.ini %v", parseErr)
+	}
+
+	difficultyNum, err := strconv.Atoi(difficulty)
+	if err != nil {
+		logger.FatalF("Error converting difficulty string to int:", err)
+	} else {
+		enum.Difficulty = strings.Repeat("0", difficultyNum)
 	}
 
 	apiAddress, parseErr := configFile.String("gossip", "api_address")
