@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/pow"
 	"net"
 	"sync"
 	"time"
@@ -174,6 +175,10 @@ func (node *GossipNode) HandleConnection(conn net.Conn) {
 		return
 	}
 
+	if !pow.Validate(msg) {
+		logger.Error("Failed to validate nonce")
+		return
+	}
 	node.handleGossipMessage(msg)
 }
 
@@ -209,6 +214,7 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage) {
 		node.messageCache[msg.MessageId] = struct{}{}
 		logger.InfoF("New Message saved in Cache with ID: %s", msg.MessageId)
 		msg.Ttl -= 1
+
 		node.gossip(msg)
 
 	case int32(enum.PeerAnnounce):

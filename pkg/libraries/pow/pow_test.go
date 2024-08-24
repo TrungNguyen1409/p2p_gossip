@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// TestCalculate checks that the Calculate function correctly finds a nonce.
+// TestCalculate checks that the CalculateAndAddNonce function correctly finds a nonce.
 func TestCalculate(t *testing.T) {
 	// Set up a test message
 	testMessage := &pb.GossipMessage{
@@ -17,16 +17,17 @@ func TestCalculate(t *testing.T) {
 		Payload:   []byte("test payload"),
 		Ttl:       64,
 		MessageId: "testMessageID",
+		Nonce:     0,
 	}
 
 	enum.Difficulty = "0000"
 
 	startTime := time.Now()
-	nonce := Calculate(testMessage)
+	CalculateAndAddNonce(testMessage)
 	duration := time.Since(startTime).Seconds()
 
 	// Output the time taken to calculate
 	t.Logf("Time taken to calculate PoW: %f seconds", duration)
 
-	assert.True(t, Validate(testMessage, nonce))
+	assert.True(t, Validate(testMessage))
 }
