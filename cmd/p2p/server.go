@@ -102,7 +102,8 @@ func (node *GossipNode) listen(p2pAddress string, wg *sync.WaitGroup) {
 			logger.FatalF("failed to find an available port: %v", err)
 		}
 	}
-
+	// line underneath is unnecessary when one node has one corresponding address IP only
+	node.p2pAddress = ln.Addr().String()
 	logger.InfoF("P2P Server is listening on: %v", ln.Addr())
 
 	if err := node.registerWithBootstrapper(ln.Addr().String()); err != nil {
