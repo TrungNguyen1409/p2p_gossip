@@ -13,16 +13,16 @@ import (
 
 type Bootstrapper struct {
 	mu                  sync.RWMutex
-	peers               map[string]time.Time
+	peersTimeoutList    map[string]time.Time
 	timeout             time.Duration
 	cleanupListInterval time.Duration
 }
 
 func NewBootstrapper() *Bootstrapper {
 	return &Bootstrapper{
-		peers:               make(map[string]time.Time),
-		timeout:             1 * time.Second,
-		cleanupListInterval: 1 * time.Minute, // Set a timeout for node inactivity
+		peersTimeoutList:    make(map[string]time.Time),
+		timeout:             5 * time.Second,
+		cleanupListInterval: 5 * time.Second, // Set a timeout for node inactivity
 	}
 }
 
@@ -44,7 +44,7 @@ func (b *Bootstrapper) RegisterPeer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	b.mu.Lock()
-	b.peers[peer] = time.Now() // Set the last seen time to now
+	b.peersTimeoutList[peer] = time.Now() // Set the last seen time to now
 	b.mu.Unlock()
 	logger.Info("Registering successful")
 	w.WriteHeader(http.StatusOK)
@@ -60,7 +60,7 @@ func (b *Bootstrapper) DeregisterPeer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	b.mu.Lock()
-	delete(b.peers, peer)
+	delete(b.peersTimeoutList, peer)
 	b.mu.Unlock()
 
 	w.WriteHeader(http.StatusOK)
@@ -70,8 +70,8 @@ func (b *Bootstrapper) GetPeers(w http.ResponseWriter, r *http.Request) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	peers := make([]string, 0, len(b.peers))
-	for peer := range b.peers {
+	peers := make([]string, 0, len(b.peersTimeoutList))
+	for peer := range b.peersTimeoutList {
 		peers = append(peers, peer)
 	}
 
@@ -82,6 +82,8 @@ func (b *Bootstrapper) GetPeers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (b *Bootstrapper) HandleHeartbeat(w http.ResponseWriter, r *http.Request) {
+	logger := logging.NewCustomLogger()
+
 	peer := r.URL.Query().Get("peer")
 	if peer == "" {
 		http.Error(w, "Missing peer", http.StatusBadRequest)
@@ -91,9 +93,8 @@ func (b *Bootstrapper) HandleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	fmt.Println(peer)
-	if _, exists := b.peers[peer]; exists {
-		b.peers[peer] = time.Now() // Update the last seen time
-		logger := logging.NewCustomLogger()
+	if _, exists := b.peersTimeoutList[peer]; exists {
+		b.peersTimeoutList[peer] = time.Now() // Update the last seen time
 		logger.DebugF("Received heartbeat from: %s", peer)
 		w.WriteHeader(http.StatusOK)
 	} else {
@@ -104,6 +105,8 @@ func (b *Bootstrapper) HandleHeartbeat(w http.ResponseWriter, r *http.Request) {
 }
 
 func (b *Bootstrapper) RemoveInactivePeers() {
+	logger := logging.NewCustomLogger()
+
 	ticker := time.NewTicker(b.cleanupListInterval)
 	defer ticker.Stop()
 
@@ -111,11 +114,11 @@ func (b *Bootstrapper) RemoveInactivePeers() {
 		select {
 		case <-ticker.C:
 			b.mu.Lock()
-			for peer, lastSeen := range b.peers {
+			for peer, lastSeen := range b.peersTimeoutList {
+
 				if time.Since(lastSeen) > b.timeout {
-					logger := logging.NewCustomLogger()
 					logger.InfoF("Removing inactive peer: %s", peer)
-					delete(b.peers, peer)
+					delete(b.peersTimeoutList, peer)
 				}
 			}
 			b.mu.Unlock()
@@ -129,7 +132,7 @@ func (b *Bootstrapper) printRegisteredPeers() {
 
 	logger := logging.NewCustomLogger()
 	logger.Info("Current list of registered peers:")
-	for peer := range b.peers {
+	for peer := range b.peersTimeoutList {
 		fmt.Println(peer)
 	}
 }
