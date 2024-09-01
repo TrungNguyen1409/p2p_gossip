@@ -72,11 +72,11 @@ send_message() {
 echo "Sending AnnounceMsg"
 send_message 500 "$(create_announce_message)"
 
-echo "Sending NotifyMsg"
-send_message 501 "$(create_notify_message)"
+# echo "Sending NotifyMsg"
+# send_message 501 "$(create_notify_message)"
 
-echo "Sending NotificationMsg"
-send_message 502 "$(create_notification_message)"
+# echo "Sending NotificationMsg"
+# send_message 502 "$(create_notification_message)"
 
 echo "Sending ValidationMsg"
 send_message 503 "$(create_validation_message)"
