@@ -1,0 +1,50 @@
+version: '3'
+services:
+  bootstrapper:
+    image: my-bootstrapper
+    container_name: bootstrapper
+
+    networks:
+      - my-network
+    ports:
+      - "8080:8080"
+
+
+  node:
+    image: my-node-image-new-config
+    #what if change the name of container / host in the config.ini instead of localhost:9090 -> node1:9090
+    container_name: node
+
+    networks:
+      - my-network
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./docker-container-config/config-node:/root/configs
+
+  node1:
+    image: my-node-image-new-config
+    container_name: node1
+
+    networks:
+      - my-network
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    volumes:
+      - ./docker-container-config/config-node1:/root/configs
+
+  node2:
+    image: my-node-image-new-config
+    container_name: node2
+
+    networks:
+      - my-network
+    ports:
+      - "9004:9000"
+      - "9005:9001"
+    volumes:
+      - ./docker-container-config/config-node2:/root/configs
+networks:
+  my-network:

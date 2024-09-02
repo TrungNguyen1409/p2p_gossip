@@ -145,10 +145,10 @@ func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.Announce
 
 			gossipMsg := &pb.GossipMessage{
 				MessageId: uint32(generate16BitRandomInteger()),
-				Payload:   []byte(msg.Data), // Assuming `Content` is a field in `AnnounceMsg`
-				From:      node.p2pAddress,  // Use the node's own address
+				Payload:   []byte(msg.Data),
+				From:      node.p2pAddress,
 				Type:      int32(msg.DataType),
-				Ttl:       int32(msg.TTL), // Assuming `Type` is a field in `AnnounceMsg`
+				Ttl:       int32(msg.TTL),
 			}
 
 			node.gossip(gossipMsg, logger)
