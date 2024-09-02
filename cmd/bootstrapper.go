@@ -21,8 +21,8 @@ type Bootstrapper struct {
 func NewBootstrapper() *Bootstrapper {
 	return &Bootstrapper{
 		peersTimeoutList:    make(map[string]time.Time),
-		timeout:             5 * time.Second,
-		cleanupListInterval: 5 * time.Second, // Set a timeout for node inactivity
+		timeout:             45 * time.Second,
+		cleanupListInterval: 60 * time.Second, // Set a timeout for node inactivity
 	}
 }
 

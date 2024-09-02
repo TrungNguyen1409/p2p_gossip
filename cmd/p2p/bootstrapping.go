@@ -15,6 +15,8 @@ import (
 
 func (node *GossipNode) registerWithBootstrapper(p2pAddress string) error {
 	logger := logging.NewCustomLogger()
+	logger.InfoF("Registering with: %v", node.bootstrapURL)
+
 	resp, err := http.PostForm(node.bootstrapURL+"/register", url.Values{"peer": {p2pAddress}})
 	if err != nil {
 		return err
@@ -36,7 +38,7 @@ func (node *GossipNode) registerWithBootstrapper(p2pAddress string) error {
 func (node *GossipNode) getInitialPeers() error {
 
 	logger := logging.NewCustomLogger()
-
+	logger.InfoF("Getting initial peers from: %v", node.bootstrapURL)
 	resp, err := http.Get(node.bootstrapURL + "/peers")
 	if err != nil {
 		return err
@@ -87,7 +89,7 @@ func (node *GossipNode) periodicBootstrapping() {
 	}
 }
 func (node *GossipNode) sendHeartbeat() {
-	ticker := time.NewTicker(5 * time.Second) // Adjust the interval as needed
+	ticker := time.NewTicker(30 * time.Second) // Adjust the interval as needed
 	defer ticker.Stop()
 
 	for {

@@ -1,0 +1,27 @@
+# Stage 1: Build the Go app
+FROM golang:alpine AS builder
+
+RUN apk --no-cache add git
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY . .
+
+RUN go build -o bootstrapper cmd/bootstrapper.go
+
+# Stage 2: Create a minimal image with just the Go binary
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /app/bootstrapper .
+
+EXPOSE 8080
+
+CMD ["./bootstrapper"]
