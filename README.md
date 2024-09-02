@@ -46,8 +46,14 @@ Examples:
 5. ./client -n -d  127.0.0.1 -p 9001 -t 1  
 
 // trigger one gossip node spread notify message to its neighbour
-6. ./client -a -d 127.0.0.1 -p [API_PORT_OF_A_NODE] -m randomm
+6. ./client -a -d 127.0.0.1 -p [API_PORT_OF_A_NODE] -m randomm -ttl 3
 
 all receiving gossip node will handle the notify message if there is matching in notify Channel
 ```
+
+### How to use build and use docker?
+
+1. Build image for Bootstrapper: ``` docker build -f Dockerfile.bootstrapper -t my-bootstrapper . ```
+2. Build image for Node: ```docker build -t my-node-image-new-config .```
+3. Run ``` docker compose up -d ```
 
