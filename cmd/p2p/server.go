@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -16,7 +17,8 @@ type GossipNode struct {
 	p2pAddress          string
 	peers               map[string]struct{}
 	peersMutex          sync.RWMutex
-	messageCache        map[string]struct{}
+	messageIDCache      []string
+	cacheSize           int
 	fanout              int
 	gossipInterval      time.Duration
 	announceMsgChan     chan enum.AnnounceMsg
@@ -30,7 +32,7 @@ const (
 	gossipInterval = enum.GossipInterval
 )
 
-func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan enum.AnnounceMsg, notificationMsgChan chan enum.NotificationMsg, datatypeMapper *common.DatatypeMapper, bootstrapURL string) *GossipNode {
+func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan enum.AnnounceMsg, notificationMsgChan chan enum.NotificationMsg, datatypeMapper *common.DatatypeMapper, bootstrapURL string, cacheSize int) *GossipNode {
 	peers := make(map[string]struct{})
 	for _, peer := range initialPeers {
 		peers[peer] = struct{}{}
@@ -41,7 +43,8 @@ func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan cha
 		peers:               peers,
 		announceMsgChan:     announceMsgChan,
 		notificationMsgChan: notificationMsgChan,
-		messageCache:        make(map[string]struct{}),
+		messageIDCache:      make([]string, 0, cacheSize),
+		cacheSize:           cacheSize,
 		fanout:              fanout,
 		gossipInterval:      gossipInterval,
 		datatypeMapper:      datatypeMapper,
@@ -51,7 +54,6 @@ func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan cha
 
 func (node *GossipNode) Start() {
 	logger := logging.NewCustomLogger()
-
 	if err := node.getInitialPeers(); err != nil {
 		logger.FatalF("Failed to register with bootstrapper: %v", err)
 	}
@@ -76,7 +78,6 @@ func (node *GossipNode) Start() {
 
 	go func() {
 		defer wg.Done()
-		// fetching every 5 seconds (read more paper to research about this) -> doesn't seem like good logic yet
 		node.periodicBootstrapping()
 	}()
 
@@ -131,7 +132,6 @@ func (node *GossipNode) listen(p2pAddress string, wg *sync.WaitGroup) {
 }
 
 // listenAnnounceMessage: listen to announce message and gossip it away. this function is to take announceMsg from the channel (used or intrad node call)
-// currently cannot distinguish between announce and notify
 func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.AnnounceMsg) {
 	logger := logging.NewCustomLogger()
 
@@ -141,7 +141,7 @@ func (node *GossipNode) listenAnnounceMessage(announceMsgChan chan enum.Announce
 			logger.Info("Channel closed, exiting loop")
 			return
 		} else {
-			logger.InfoF("P2P Server: Received a message: %+v\n", msg)
+			logger.InfoF("P2P Server: Received an Announce message: %+v\n", msg)
 
 			gossipMsg := &pb.GossipMessage{
 				MessageId: uint32(generate16BitRandomInteger()),
@@ -186,20 +186,18 @@ func (node *GossipNode) HandleConnection(conn net.Conn, logger *logging.Logger) 
 }
 
 func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage, logger *logging.Logger) {
-	//check whether node has demanded Notify by checking whether incoming message has type of Notification 502
-	// testing client is currently sending announce message, not notification (fix client a bit)
-	// notification is not being sent from peer to peer but from gossip to module
-	//how to know : peer -----announce----> peer ----- notification ----> module
-	//  fix code according to realization above
+
 	logger.InfoF("Received gossip message: %s", string(msg.Payload))
 
-	/*if _, seen := node.messageCache[msg.MessageId]; seen {
-		logger.Debug("Duplicated gossip message")
+	if node.isMessageCached(strconv.Itoa(int(msg.MessageId))) {
+		logger.Info("Duplicated gossip message")
 		return
-	}*/
+	}
+
+	node.addToCache(strconv.Itoa(int(msg.MessageId)))
 
 	if node.datatypeMapper.CheckNotify(uint16(msg.MessageId), enum.Datatype(msg.Type)) {
-		logger.DebugF("Notification Message found with type: %d", msg.Type)
+		//logger.DebugF("Notification Message found with type: %d", msg.Type)
 
 		newNotificationMsg := enum.NotificationMsg{
 			MessageID: uint16(msg.MessageId),
@@ -208,10 +206,7 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage, logger *loggi
 		}
 
 		node.notificationMsgChan <- newNotificationMsg
-		logger.Info("New NotificationMsg added to channel")
 	}
-	/*node.messageCache[msg.MessageId] = struct{}{}
-	logger.InfoF("New Message saved in Cache with ID: %s", msg.MessageId)*/
 
 	msg.Ttl -= 1
 
@@ -236,4 +231,28 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage, logger *loggi
 	logger.InfoF("New Message saved in Cache with ID: %s", msg.MessageId)
 	msg.Ttl -= 1
 	node.gossip(msg, logger)*/
+}
+
+func (node *GossipNode) addToCache(msgID string) {
+	for _, id := range node.messageIDCache {
+		if id == msgID {
+			return
+		}
+	}
+
+	if len(node.messageIDCache) >= node.cacheSize {
+		node.messageIDCache = node.messageIDCache[1:]
+	}
+
+	node.messageIDCache = append(node.messageIDCache, msgID)
+
+}
+
+func (node *GossipNode) isMessageCached(msgID string) bool {
+	for _, id := range node.messageIDCache {
+		if id == msgID {
+			return true
+		}
+	}
+	return false
 }

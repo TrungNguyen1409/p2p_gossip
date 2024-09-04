@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"log"
 	"net/http"
@@ -37,18 +36,16 @@ func (b *Bootstrapper) RegisterPeer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	peer := r.FormValue("peer")
-	logger.DebugF("peer: %s", peer)
-
 	if peer == "" {
 		http.Error(w, "Missing peer", http.StatusBadRequest)
 		return
 	}
 
 	b.mu.Lock()
-	b.peersTimeoutList[peer] = time.Now() // Set the last seen time to now
+	b.peersTimeoutList[peer] = time.Now()
 	b.mu.Unlock()
-	logger.Info("Registering successful")
 	w.WriteHeader(http.StatusOK)
+	logger.InfoF("Peer %s registered successfully", peer)
 
 	b.printRegisteredPeers()
 }
@@ -93,13 +90,11 @@ func (b *Bootstrapper) HandleHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	fmt.Println(peer)
 	if _, exists := b.peersTimeoutList[peer]; exists {
-		b.peersTimeoutList[peer] = time.Now() // Update the last seen time
-		logger.DebugF("Received heartbeat from: %s", peer)
+		b.peersTimeoutList[peer] = time.Now()
 		w.WriteHeader(http.StatusOK)
 	} else {
-		fmt.Println("peer not registered")
+		logger.Error("Peer is not registered with Bootstrapping Server")
 
 		http.Error(w, "Peer not registered", http.StatusBadRequest)
 	}
@@ -133,13 +128,17 @@ func (b *Bootstrapper) printRegisteredPeers() {
 
 	logger := logging.NewCustomLogger()
 	logger.Info("Current list of registered peers:")
+
+	counter := 1
 	for peer := range b.peersTimeoutList {
-		fmt.Println(peer)
+		logger.InfoF("%d: %s", counter, peer)
+		counter++
 	}
 }
 
 func main() {
 	bootstrapper := NewBootstrapper()
+	logger := logging.NewCustomLogger()
 
 	go bootstrapper.RemoveInactivePeers()
 
@@ -148,6 +147,6 @@ func main() {
 	http.HandleFunc("/peers", bootstrapper.GetPeers)
 	http.HandleFunc("/heartbeat", bootstrapper.HandleHeartbeat)
 
-	fmt.Println("Bootstrapper server is running on port 8080")
+	logger.Info("Bootstrapper server is running on port 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

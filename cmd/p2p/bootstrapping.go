@@ -39,7 +39,6 @@ func (node *GossipNode) registerWithBootstrapper(p2pAddress string) error {
 func (node *GossipNode) getInitialPeers() error {
 
 	logger := logging.NewCustomLogger()
-	logger.InfoF("Getting initial peers from: %v", node.bootstrapURL)
 	resp, err := http.Get(node.bootstrapURL + "/peers")
 	if err != nil {
 		return err
@@ -67,7 +66,7 @@ func (node *GossipNode) getInitialPeers() error {
 			node.peers[peer] = struct{}{}
 		}
 	}
-	logger.InfoF("Initial peers fetched successfully: %v", peers)
+	logger.InfoF("Peers list updated successfully from: %v", node.bootstrapURL)
 	return nil
 }
 
@@ -79,18 +78,15 @@ func (node *GossipNode) periodicBootstrapping() {
 		select {
 		case <-ticker.C:
 			logger := logging.NewCustomLogger()
-			logger.Info("Fetching new list of peers from bootstrapper...")
 
 			if err := node.getInitialPeers(); err != nil {
 				logger.ErrorF("Failed to fetch peers from bootstrapper: %v", err)
-			} else {
-				logger.Info("Successfully updated peers from bootstrapper.")
 			}
 		}
 	}
 }
 func (node *GossipNode) sendHeartbeat() {
-	ticker := time.NewTicker(enum.HeartbeatTicker) // Adjust the interval as needed
+	ticker := time.NewTicker(enum.HeartbeatTicker)
 	defer ticker.Stop()
 
 	for {
@@ -98,19 +94,16 @@ func (node *GossipNode) sendHeartbeat() {
 		case <-ticker.C:
 			logger := logging.NewCustomLogger()
 
-			// Split the p2pAddress into host and port
 			host, port, err := net.SplitHostPort(node.p2pAddress)
 			if err != nil {
 				logger.ErrorF("Invalid p2pAddress format: %v", err)
 				continue
 			}
 
-			// Check if the host is "localhost" and replace it with "127.0.0.1"
 			if host == "localhost" {
 				host = "127.0.0.1"
 			}
 
-			// Recombine host and port into the final address
 			address := net.JoinHostPort(host, port)
 
 			heartBeatURL := fmt.Sprintf("%s/heartbeat?peer=%s", node.bootstrapURL, address)
