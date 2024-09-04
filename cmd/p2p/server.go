@@ -27,7 +27,7 @@ type GossipNode struct {
 
 const (
 	fanout         = 2
-	gossipInterval = 5 * time.Second
+	gossipInterval = enum.GossipInterval
 )
 
 func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan enum.AnnounceMsg, notificationMsgChan chan enum.NotificationMsg, datatypeMapper *common.DatatypeMapper, bootstrapURL string) *GossipNode {
@@ -199,7 +199,7 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage, logger *loggi
 	}*/
 
 	if node.datatypeMapper.CheckNotify(uint16(msg.MessageId), enum.Datatype(msg.Type)) {
-		logger.DebugF("Notification Message found: %s", msg.Type)
+		logger.DebugF("Notification Message found with type: %d", msg.Type)
 
 		newNotificationMsg := enum.NotificationMsg{
 			MessageID: uint16(msg.MessageId),

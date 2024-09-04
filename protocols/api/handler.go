@@ -132,8 +132,7 @@ func (h *Handler) notifyHandler(reader *bytes.Reader) error {
 			// If the channel is closed, exit the loop
 			return fmt.Errorf("notification channel closed")
 		} else {
-			h.logger.Info("Got notification message")
-			h.logger.InfoF("%d and %d \n", notificationMsg.DataType, msg.DataType)
+			h.logger.InfoF("Got notification message type %d. Requested type %d\n", notificationMsg.DataType, msg.DataType)
 			if notificationMsg.DataType == msg.DataType {
 				sendNotificationMessage(h.conn, notificationMsg, h.logger)
 			}

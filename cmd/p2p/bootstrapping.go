@@ -3,6 +3,7 @@ package p2p
 import (
 	"encoding/json"
 	"fmt"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/libraries/logging"
 	"io"
 	"net"
@@ -71,7 +72,7 @@ func (node *GossipNode) getInitialPeers() error {
 }
 
 func (node *GossipNode) periodicBootstrapping() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(enum.PeriodicBootstrapTicker)
 	defer ticker.Stop()
 
 	for {
@@ -89,7 +90,7 @@ func (node *GossipNode) periodicBootstrapping() {
 	}
 }
 func (node *GossipNode) sendHeartbeat() {
-	ticker := time.NewTicker(30 * time.Second) // Adjust the interval as needed
+	ticker := time.NewTicker(enum.HeartbeatTicker) // Adjust the interval as needed
 	defer ticker.Stop()
 
 	for {

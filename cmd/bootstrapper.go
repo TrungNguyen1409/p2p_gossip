@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"log"
 	"net/http"
 	"sync"
@@ -21,8 +22,8 @@ type Bootstrapper struct {
 func NewBootstrapper() *Bootstrapper {
 	return &Bootstrapper{
 		peersTimeoutList:    make(map[string]time.Time),
-		timeout:             45 * time.Second,
-		cleanupListInterval: 60 * time.Second, // Set a timeout for node inactivity
+		timeout:             enum.Timeout,
+		cleanupListInterval: enum.CleanupListInterval, // Set a timeout for node inactivity
 	}
 }
 

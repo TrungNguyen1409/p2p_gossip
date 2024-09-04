@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/robfig/config"
-	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/protocols/api"
+	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"net"
 )
 
@@ -21,22 +21,22 @@ func main() {
 	}{
 		{
 			name:        "AnnounceMsg",
-			messageType: api.GossipAnnounce,
+			messageType: enum.GossipAnnounce,
 			message:     createAnnounceMessage(),
 		},
 		{
 			name:        "NotifyMsg",
-			messageType: api.GossipNotify,
+			messageType: enum.GossipNotify,
 			message:     createNotifyMessage(),
 		},
 		{
 			name:        "NotificationMsg",
-			messageType: api.GossipNotification,
+			messageType: enum.GossipNotification,
 			message:     createNotificationMessage(),
 		},
 		{
 			name:        "ValidationMsg",
-			messageType: api.GossipValidation,
+			messageType: enum.GossipValidation,
 			message:     createValidationMessage(),
 		},
 	}

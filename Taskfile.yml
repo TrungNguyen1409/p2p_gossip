@@ -2,7 +2,6 @@ version: '3'
 
 vars:
   CLIENT_SOURCE: "cmd/client.go"
-  CLIENT2_SOURCE: "cmd/client2.go"
   SERVER_SOURCE: "cmd/main.go"
   BOOTSTRAPPER_SOURCE: "cmd/bootstrapper.go"
   CLIENT_BINARY: "client"
@@ -15,13 +14,6 @@ tasks:
     desc: "Compile the client program"
     cmds:
       - go build -o {{.CLIENT_BINARY}} {{.CLIENT_SOURCE}}
-    generates:
-      - "{{.CLIENT_BINARY}}"
-
-  client2:
-    desc: "Compile the client program"
-    cmds:
-      - go build -o {{.CLIENT2_BINARY}} {{.CLIENT2_SOURCE}}
     generates:
       - "{{.CLIENT_BINARY}}"
 

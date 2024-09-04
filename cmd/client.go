@@ -78,21 +78,27 @@ Examples:
 	}
 
 	if announce {
-		sendMessage(conn, enum.GossipAnnounce, createAnnounceMessage(message, uint8(ttl), datatype))
+		sendMessage(conn, enum.GossipAnnounce, createAnnounceMessage(message, uint8(ttl), datatype), logger)
 	} else if notify {
-		sendMessage(conn, enum.GossipNotify, createNotifyMessage(datatype))
+		handleConnection(conn, datatype, logger)
 	}
 }
 
-func sendMessage(conn net.Conn, messageType uint16, message []byte) {
-	logger := logging.NewCustomLogger()
-
+func handleConnection(conn net.Conn, datatype int, logger *logging.Logger) {
 	defer func(conn net.Conn) {
 		err := conn.Close()
 		if err != nil {
+			logger.ErrorF("Failed to close connection: %v\n", err)
 		}
 	}(conn)
 
+	logger.InfoF("Accepted connection from %s\n", conn.RemoteAddr())
+
+	message := createNotifyMessage(datatype)
+	sendMessageAndWaitForResponse(conn, enum.GossipNotify, message, logger)
+}
+
+func sendMessageAndWaitForResponse(conn net.Conn, messageType uint16, message []byte, logger *logging.Logger) {
 	var writeBuffer bytes.Buffer
 
 	_ = binary.Write(&writeBuffer, binary.BigEndian, uint16(len(message)+4))
@@ -106,14 +112,72 @@ func sendMessage(conn net.Conn, messageType uint16, message []byte) {
 		logger.InfoF("Sent %d bytes for message type %d.\n", writeBuffer.Len(), messageType)
 	}
 
-	var response []byte
-	n, err := conn.Read(response)
-	if err != nil {
-		logger.InfoF("Error reading response: %v\n", err)
-		return
-	}
+	for {
+		messageBuffer := make([]byte, 1024)
+		_, err := conn.Read(messageBuffer)
 
-	logger.InfoF("Received response: %s\n", string(response[:n]))
+		logger.DebugF("Reading from %s\n", conn.RemoteAddr())
+
+		if err != nil {
+			if err.Error() == "EOF" {
+				logger.Info("Connection closed by peer.")
+				return
+			}
+			logger.ErrorF("Error reading response: %v\n", err)
+			return
+		}
+
+		reader := bytes.NewReader(messageBuffer)
+
+		var size uint16
+		var messageType uint16
+
+		var msg enum.NotificationMsg
+
+		// Read the size
+		if err = binary.Read(reader, binary.BigEndian, &size); err != nil {
+			logger.ErrorF("Error reading size: %v\n", err)
+		}
+
+		// Read the message type
+		if err = binary.Read(reader, binary.BigEndian, &messageType); err != nil {
+			logger.ErrorF("Error reading message type: %v\n", err)
+		}
+
+		// marshallNotification parses the JSON data manually, and populates the NotificationMsg struct
+		if err := binary.Read(reader, binary.BigEndian, &msg.MessageID); err != nil {
+			logger.ErrorF("Error reading message type:", err)
+		}
+
+		if err := binary.Read(reader, binary.BigEndian, &msg.DataType); err != nil {
+			logger.ErrorF("Error reading message type:", err)
+		}
+
+		msgBuf := make([]byte, reader.Len())
+
+		if err := binary.Read(reader, binary.BigEndian, &msgBuf); err != nil {
+			logger.ErrorF("Error reading message type:", err)
+		} else {
+			msg.Data = string(msgBuf)
+		}
+
+		logger.InfoF("Received message %+v", msg)
+	}
+}
+
+func sendMessage(conn net.Conn, messageType uint16, message []byte, logger *logging.Logger) {
+	var writeBuffer bytes.Buffer
+
+	_ = binary.Write(&writeBuffer, binary.BigEndian, uint16(len(message)+4))
+	_ = binary.Write(&writeBuffer, binary.BigEndian, messageType)
+	_ = binary.Write(&writeBuffer, binary.BigEndian, message)
+	_, err := conn.Write(writeBuffer.Bytes())
+	if err != nil {
+		logger.InfoF("Failed to send message: %v\n", err)
+		return
+	} else {
+		logger.InfoF("Sent %d bytes for message type %d.\n", writeBuffer.Len(), messageType)
+	}
 }
 
 func createAnnounceMessage(message string, ttl uint8, datatype int) []byte {
@@ -146,4 +210,53 @@ func createNotifyMessage(datatype int) []byte {
 	_ = binary.Write(&buffer, binary.BigEndian, DATATYPE)
 
 	return buffer.Bytes()
+}
+
+func unmarshallMessage(conn net.Conn, logger *logging.Logger) error {
+	messageBuffer := make([]byte, 1024)
+	_, err := conn.Read(messageBuffer)
+
+	logger.DebugF("Reading from %s\n", conn.RemoteAddr())
+
+	if err != nil {
+		return fmt.Errorf("Error reading from connection: %v\n", err)
+	}
+
+	reader := bytes.NewReader(messageBuffer)
+
+	var size uint16
+	var messageType uint16
+
+	var msg enum.NotificationMsg
+
+	// Read the size
+	if err = binary.Read(reader, binary.BigEndian, &size); err != nil {
+		logger.ErrorF("Error reading size: %v\n", err)
+	}
+
+	// Read the message type
+	if err = binary.Read(reader, binary.BigEndian, &messageType); err != nil {
+		return fmt.Errorf("Error reading message type: %v\n", err)
+	}
+
+	// marshallNotification parses the JSON data manually, and populates the NotificationMsg struct
+	if err := binary.Read(reader, binary.BigEndian, &msg.MessageID); err != nil {
+		return fmt.Errorf("Error reading message type:", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &msg.DataType); err != nil {
+		return fmt.Errorf("Error reading message type:", err)
+	}
+
+	msgBuf := make([]byte, reader.Len())
+
+	if err := binary.Read(reader, binary.BigEndian, &msgBuf); err != nil {
+		return fmt.Errorf("Error reading message type:", err)
+	} else {
+		msg.Data = string(msgBuf)
+	}
+
+	logger.InfoF("Received message %v", msg)
+
+	return nil
 }
