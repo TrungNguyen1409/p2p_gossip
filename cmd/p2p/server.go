@@ -198,7 +198,7 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage, logger *loggi
 		return
 	}*/
 
-	if node.datatypeMapper.CheckNotify(enum.Datatype(msg.Type)) {
+	if node.datatypeMapper.CheckNotify(uint16(msg.MessageId), enum.Datatype(msg.Type)) {
 		logger.DebugF("Notification Message found: %s", msg.Type)
 
 		newNotificationMsg := enum.NotificationMsg{

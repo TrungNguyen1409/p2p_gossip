@@ -78,6 +78,10 @@ func (h *Handler) Handle() {
 		if err = h.announceHandler(reader); err != nil {
 			h.logger.ErrorF("Error handling ANNOUNCE message: %v\n", err)
 		}
+	case enum.GossipValidation:
+		if err = h.validationHandler(reader); err != nil {
+			h.logger.ErrorF("Error handling VALIDATION message: %v\n", err)
+		}
 	}
 }
 
@@ -135,6 +139,27 @@ func (h *Handler) notifyHandler(reader *bytes.Reader) error {
 			}
 		}
 	}
+}
+
+// validationHandler handles Validation
+func (h *Handler) validationHandler(reader *bytes.Reader) error {
+	defer func() {
+		if err := h.conn.Close(); err != nil {
+			h.logger.ErrorF("Error closing connection: %v", err)
+		}
+		h.logger.Info("Connection closed")
+	}()
+
+	var msg enum.ValidationMsg
+	if err := h.unmarshallValidation(reader, &msg); err != nil {
+		return fmt.Errorf("failed to unmarshal notify message: %w", err)
+	}
+
+	if msg.Reserved&1 == 1 {
+		h.datatypeMapper.AddInvalidMsgID(msg.MessageID)
+	}
+
+	return nil
 }
 
 func (h *Handler) sendResponse(s string) {

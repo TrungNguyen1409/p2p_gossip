@@ -11,15 +11,17 @@ import (
 
 // DatatypeMapper map address -> another map value: enum.Datatype -> boolean, that indicates presence of that type
 type DatatypeMapper struct {
-	mu     sync.RWMutex
-	data   map[net.Addr]map[enum.Datatype]bool
-	logger *logging.Logger
+	mu           sync.RWMutex
+	data         map[net.Addr]map[enum.Datatype]bool
+	invalidMsgID map[uint16]bool
+	logger       *logging.Logger
 }
 
 // NewMap initializes a new DatatypeMapper.
 func NewMap() *DatatypeMapper {
 	return &DatatypeMapper{
-		data: make(map[net.Addr]map[enum.Datatype]bool),
+		data:         make(map[net.Addr]map[enum.Datatype]bool),
+		invalidMsgID: make(map[uint16]bool),
 	}
 }
 
@@ -33,10 +35,20 @@ func (am *DatatypeMapper) Add(addr net.Addr, datatype enum.Datatype) {
 	am.data[addr][datatype] = true
 }
 
-func (am *DatatypeMapper) CheckNotify(datatype enum.Datatype) bool {
+// AddInvalidMsgID Add adds a new datatype to a specific address in the DatatypeMapper.
+func (am *DatatypeMapper) AddInvalidMsgID(msgID uint16) {
+	am.mu.Lock()
+	defer am.mu.Unlock()
+	am.invalidMsgID[msgID] = true
+}
 
+func (am *DatatypeMapper) CheckNotify(msgID uint16, datatype enum.Datatype) bool {
 	am.mu.RLock()
 	defer am.mu.RUnlock()
+
+	if am.invalidMsgID[msgID] {
+		return false
+	}
 
 	// Iterate through the map and check for existence of Notify demand
 	for addr, datatypes := range am.data {
