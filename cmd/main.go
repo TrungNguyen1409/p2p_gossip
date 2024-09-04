@@ -57,6 +57,11 @@ func NewServer() *Server {
 		logger.FatalF("Can not read bootstrapper_address from config.ini %v", parseErr)
 	}
 
+	cacheSize, parseErr := configFile.Int("gossip", "cache_size")
+	if parseErr != nil {
+		logger.FatalF("Failed to read cache_size from config: %v", err)
+	}
+
 	announceMsgChan := make(chan enum.AnnounceMsg)
 	notificationMsgChan := make(chan enum.NotificationMsg)
 
@@ -64,8 +69,7 @@ func NewServer() *Server {
 
 	apiServer := api.NewServer(apiAddress, announceMsgChan, notificationMsgChan, datatypeMapper)
 
-	p2pServer := p2p.NewGossipNode(p2pAddress, []string{}, announceMsgChan, notificationMsgChan, datatypeMapper, bootstrapperAddress)
-
+	p2pServer := p2p.NewGossipNode(p2pAddress, []string{}, announceMsgChan, notificationMsgChan, datatypeMapper, bootstrapperAddress, cacheSize)
 	return &Server{apiServer: apiServer, p2pServer: p2pServer, announceMsgChan: announceMsgChan, datatypeMapper: datatypeMapper}
 
 }

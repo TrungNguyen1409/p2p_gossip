@@ -21,39 +21,28 @@ func (node *GossipNode) gossip(msg *pb.GossipMessage, logger *logging.Logger) {
 
 	logger.DebugF(string(msg.Ttl))
 	if msg.Ttl < 1 {
-		logger.Debug("Message TTL expired, not gossiping further.")
+		logger.Info("Message TTL expired, not gossiping.")
 		return
 	}
 
-	logger.Debug("Prepare gossiping...")
 	node.peersMutex.RLock()
 	defer node.peersMutex.RUnlock()
-
-	logger.Debug("Prepare peerList...")
-
-	logger.DebugF("peer are: %v", node.peers)
 
 	peerList := make([]string, 0, len(node.peers))
 	for peer := range node.peers {
 		peerList = append(peerList, peer)
 	}
 
-	// Shuffle peers to select a random subset
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 	rand.Shuffle(len(peerList), func(i, j int) { peerList[i], peerList[j] = peerList[j], peerList[i] })
 
 	fanout := node.fanout
-	logger.DebugF("Fanout determined: %d", fanout)
-	logger.DebugF("peerlist determined: %d", len(peerList))
-	logger.DebugF("peerlist determined: %v", peerList)
 
 	if len(peerList) < fanout {
 		fanout = len(peerList)
 	}
-	logger.DebugF("Fanout determined: %d", fanout)
 
 	for i := 0; i < fanout; i++ {
-
 		peer := peerList[i]
 		logger.InfoF("gossiping with: %s", peer)
 		go func(peer string) {
