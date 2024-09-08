@@ -1,6 +1,8 @@
 package p2p
 
 import (
+	"encoding/json"
+	"io"
 	"net"
 	"strconv"
 	"sync"
@@ -17,8 +19,12 @@ type GossipNode struct {
 	p2pAddress          string
 	peers               map[string]struct{}
 	peersMutex          sync.RWMutex
+	seedNodes           map[string]struct{}
+	seedNodesMutex      sync.RWMutex
+	isSeedNode          bool
 	messageIDCache      []string
 	cacheSize           int
+	degree              int
 	fanout              int
 	gossipInterval      time.Duration
 	announceMsgChan     chan enum.AnnounceMsg
@@ -32,19 +38,35 @@ const (
 	gossipInterval = enum.GossipInterval
 )
 
-func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan chan enum.AnnounceMsg, notificationMsgChan chan enum.NotificationMsg, datatypeMapper *common.DatatypeMapper, bootstrapURL string, cacheSize int) *GossipNode {
+func NewGossipNode(
+	p2pAddress string,
+	initialPeers []string,
+	seedNodes []string,
+	isSeedNode bool,
+	announceMsgChan chan enum.AnnounceMsg,
+	notificationMsgChan chan enum.NotificationMsg,
+	datatypeMapper *common.DatatypeMapper,
+	bootstrapURL string,
+	cacheSize int, degree int) *GossipNode {
 	peers := make(map[string]struct{})
+	seedNodeMap := make(map[string]struct{})
+
 	for _, peer := range initialPeers {
 		peers[peer] = struct{}{}
 	}
-
+	for _, seedNode := range seedNodes {
+		seedNodeMap[seedNode] = struct{}{}
+	}
 	return &GossipNode{
 		p2pAddress:          p2pAddress,
 		peers:               peers,
+		seedNodes:           seedNodeMap,
+		isSeedNode:          isSeedNode,
 		announceMsgChan:     announceMsgChan,
 		notificationMsgChan: notificationMsgChan,
 		messageIDCache:      make([]string, 0, cacheSize),
 		cacheSize:           cacheSize,
+		degree:              degree,
 		fanout:              fanout,
 		gossipInterval:      gossipInterval,
 		datatypeMapper:      datatypeMapper,
@@ -54,18 +76,23 @@ func NewGossipNode(p2pAddress string, initialPeers []string, announceMsgChan cha
 
 func (node *GossipNode) Start() {
 	logger := logging.NewCustomLogger()
-	if err := node.getInitialPeers(); err != nil {
-		logger.FatalF("Failed to register with bootstrapper: %v", err)
-	}
 
 	var wg sync.WaitGroup
-	wg.Add(3)
-
+	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		node.listen(node.p2pAddress, &wg)
 	}()
 
+	time.Sleep(1 * time.Second)
+
+	if err := node.getInitialPeers(); err != nil {
+		logger.FatalF("Failed to register with bootstrapper: %v", err)
+	}
+
+	node.announceNewPeer()
+
+	node.PrintPeerLists()
 	go func() {
 		defer wg.Done()
 		node.listenAnnounceMessage(node.announceMsgChan)
@@ -73,7 +100,7 @@ func (node *GossipNode) Start() {
 
 	go func() {
 		defer wg.Done()
-		node.periodicGossip()
+		node.periodicPeerListRequest()
 	}()
 
 	go func() {
@@ -87,6 +114,7 @@ func (node *GossipNode) Start() {
 	}()
 
 	wg.Wait()
+
 }
 
 // listen: this function has multiple purposes:
@@ -168,10 +196,13 @@ func (node *GossipNode) HandleConnection(conn net.Conn, logger *logging.Logger) 
 	buf := make([]byte, 4096)
 	n, err := conn.Read(buf)
 	if err != nil {
-		logger.ErrorF("Failed to read from connection: %v", err)
+		if err == io.EOF {
+			logger.InfoF("Peer %s disconnected", conn.RemoteAddr())
+		} else {
+			logger.ErrorF("Failed to read from connection: %v", err)
+		}
 		return
 	}
-
 	msg, err := deserialize(buf[:n])
 	if err != nil {
 		logger.ErrorF("Failed to deserialize message: %v", err)
@@ -187,14 +218,16 @@ func (node *GossipNode) HandleConnection(conn net.Conn, logger *logging.Logger) 
 
 func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage, logger *logging.Logger) {
 
-	logger.InfoF("Received gossip message: %s", string(msg.Payload))
+	logger.InfoF("Received gossip message: %s with ID: %v", string(msg.Payload), strconv.Itoa(int(msg.MessageId)))
 
 	if node.isMessageCached(strconv.Itoa(int(msg.MessageId))) {
+		logger.InfoF("mesageID", strconv.Itoa(int(msg.MessageId)))
+
 		logger.Info("Duplicated gossip message")
 		return
+	} else {
+		node.addToCache(strconv.Itoa(int(msg.MessageId)))
 	}
-
-	node.addToCache(strconv.Itoa(int(msg.MessageId)))
 
 	if node.datatypeMapper.CheckNotify(uint16(msg.MessageId), enum.Datatype(msg.Type)) {
 		//logger.DebugF("Notification Message found with type: %d", msg.Type)
@@ -207,52 +240,43 @@ func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage, logger *loggi
 
 		node.notificationMsgChan <- newNotificationMsg
 	}
+	msg.Ttl -= 1 //TODO: check whether there is better place to put this, in gossip() itself for example
 
-	msg.Ttl -= 1
+	node.handleProtocolMessage(msg, logger)
 
 	node.gossip(msg, logger)
 
-	/*case int32(enum.PeerAnnounce):
-		logger.Debug("Receiving PeerAnnounce : New Peer is Joining")
-	case int32(enum.PeerLeave):
-		logger.Debug("Receiving PeerLeave : A Peer is leaving")
-		// these 2 might not relevant to be handled as gossip message
-	case int32(enum.PeerListRequest):
-		logger.Debug("Receiving PeerListRequest: A Peer is ")
-	case int32(enum.PeerListResponse):
-		logger.Debug("Peer returning peer")
-	default:
-		logger.Debug("default")
-	}
-		node.notificationMsgChan <- newNotificationMsg
-	}
-
-	node.messageCache[msg.MessageId] = struct{}{}
-	logger.InfoF("New Message saved in Cache with ID: %s", msg.MessageId)
-	msg.Ttl -= 1
-	node.gossip(msg, logger)*/
 }
+func (node *GossipNode) handleProtocolMessage(msg *pb.GossipMessage, logger *logging.Logger) {
 
-func (node *GossipNode) addToCache(msgID string) {
-	for _, id := range node.messageIDCache {
-		if id == msgID {
+	switch msg.Type {
+
+	case int32(enum.PeerJoinAnnounce):
+		logger.Debug("Handling PeerJoinAnnounce message")
+		peerAddress := string(msg.Payload)
+		node.updateByPeerJoin(peerAddress, logger)
+
+	case int32(enum.PeerLeaveAnnounce):
+		logger.Debug("Handling PeerLeave message")
+		peerAddress := string(msg.Payload)
+		node.updateByPeerLeave(peerAddress, logger)
+
+	case int32(enum.PeerListRequest):
+		logger.Debug("Handling PeerListRequest message")
+		node.respondWithPeerList(msg.From, logger)
+
+	case int32(enum.PeerListResponse):
+		logger.Debug("Handling PeerListResponse message")
+
+		var receivedPeers []string
+		err := json.Unmarshal(msg.Payload, &receivedPeers)
+		if err != nil {
+			logger.ErrorF("Failed to unmarshal peer list: %v", err)
 			return
 		}
+		node.updateByPeerListResponse(receivedPeers, logger)
+
+	default:
+		logger.DebugF("Unknown P2P message type: %d", msg.Type)
 	}
-
-	if len(node.messageIDCache) >= node.cacheSize {
-		node.messageIDCache = node.messageIDCache[1:]
-	}
-
-	node.messageIDCache = append(node.messageIDCache, msgID)
-
-}
-
-func (node *GossipNode) isMessageCached(msgID string) bool {
-	for _, id := range node.messageIDCache {
-		if id == msgID {
-			return true
-		}
-	}
-	return false
 }

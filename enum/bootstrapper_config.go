@@ -9,10 +9,21 @@ import "time"
 •	HeartbeatTicker: The interval at which a node sends a heartbeat message to the bootstrapper to signal that it is still active.
 •	GossipInterval: The time interval at which nodes send gossip messages to other nodes in the network to spread information.
 */
+/*
 const (
-	Timeout                 = 60 * time.Second
+	Timeout                 = 120 * time.Second
 	CleanupListInterval     = 120 * time.Second
 	PeriodicBootstrapTicker = 60 * time.Second
 	HeartbeatTicker         = 75 * time.Second
 	GossipInterval          = 60 * time.Second
+	SeedNodeLimit           = 5
+)*/
+
+const (
+	Timeout                 = 120 * time.Second
+	CleanupListInterval     = 120 * time.Second
+	PeriodicBootstrapTicker = 60 * time.Second
+	HeartbeatTicker         = 20 * time.Second
+	GossipInterval          = 60 * time.Second
+	SeedNodeLimit           = 3
 )

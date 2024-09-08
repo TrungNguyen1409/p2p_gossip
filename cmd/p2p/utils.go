@@ -1,8 +1,6 @@
 package p2p
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"github.com/golang/protobuf/proto"
 	pb "gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/pkg/proto"
 	"math/rand"
@@ -47,15 +45,41 @@ func send(address string, msg *pb.GossipMessage) error {
 	return err
 }
 
-func generate16BitHash(input string) string {
-	hash := sha256.Sum256([]byte(input))
-	return hex.EncodeToString(hash[:2])
+func generate16BitRandomInteger() uint16 {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return uint16(rng.Intn(65536))
 }
 
-func generate16BitRandomInteger() uint16 {
-	// Create a new rand.Rand instance with a seed based on current time
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+// function for caching message ID
+func (node *GossipNode) addToCache(msgID string) {
+	for _, id := range node.messageIDCache {
+		if id == msgID {
+			return
+		}
+	}
 
-	// Generate a 16-bit random integer
-	return uint16(rng.Intn(65536)) // 65536 is 2^16
+	if len(node.messageIDCache) >= node.cacheSize {
+		node.messageIDCache = node.messageIDCache[1:]
+	}
+
+	node.messageIDCache = append(node.messageIDCache, msgID)
+
+}
+
+func (node *GossipNode) isMessageCached(msgID string) bool {
+	for _, id := range node.messageIDCache {
+		if id == msgID {
+			return true
+		}
+	}
+	return false
+}
+
+func contains(peers []string, peer string) bool {
+	for _, p := range peers {
+		if p == peer {
+			return true
+		}
+	}
+	return false
 }

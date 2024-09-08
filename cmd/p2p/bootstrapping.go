@@ -54,22 +54,44 @@ func (node *GossipNode) getInitialPeers() error {
 		return fmt.Errorf("failed to get peers from bootstrapper, status code: %d", resp.StatusCode)
 	}
 
-	var peers []string
-	if err := json.NewDecoder(resp.Body).Decode(&peers); err != nil {
+	var peerResponse struct {
+		PartialPeers []string `json:"partialPeers"`
+		SeedNodes    []string `json:"seedNodes"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&peerResponse); err != nil {
 		return err
 	}
 
 	node.peersMutex.Lock()
 	defer node.peersMutex.Unlock()
-	for _, peer := range peers {
+
+	for _, peer := range peerResponse.PartialPeers {
 		if peer != node.p2pAddress {
 			node.peers[peer] = struct{}{}
 		}
 	}
-	logger.InfoF("Peers list updated successfully from: %v", node.bootstrapURL)
+
+	node.seedNodesMutex.Lock()
+	defer node.seedNodesMutex.Unlock()
+
+	for _, seed := range peerResponse.SeedNodes {
+		if seed != node.p2pAddress {
+			node.seedNodes[seed] = struct{}{}
+		}
+	}
+	node.isSeedNode = contains(peerResponse.SeedNodes, node.p2pAddress)
+
+	if node.isSeedNode {
+		logger.InfoF("This node (%s) is a SeedNode", node.p2pAddress)
+	} else {
+		logger.InfoF("This node (%s) is NOT a SeedNode", node.p2pAddress)
+	}
+	logger.InfoF("Peers list updated successfully with partial peers and seed nodes from: %v", node.bootstrapURL)
 	return nil
 }
 
+// TODO: remove this later cuz not needed after nodes automatically exchnage peerlist
 func (node *GossipNode) periodicBootstrapping() {
 	ticker := time.NewTicker(enum.PeriodicBootstrapTicker)
 	defer ticker.Stop()
@@ -124,6 +146,37 @@ func (node *GossipNode) sendHeartbeat() {
 			} else {
 				logger.DebugF("Heartbeat successfully sent to bootstrapper for peer: %s", address)
 			}
+		}
+	}
+}
+
+func (node *GossipNode) PrintPeerLists() {
+	logger := logging.NewCustomLogger()
+
+	node.peersMutex.RLock()
+	defer node.peersMutex.RUnlock()
+
+	// Print peers list
+	logger.Info("Current list of peers:")
+	if len(node.peers) == 0 {
+		logger.Info("No peers available")
+	} else {
+		counter := 1
+		for peer := range node.peers {
+			logger.InfoF("%d: %s", counter, peer)
+			counter++
+		}
+	}
+
+	// Print seedNodes list
+	logger.Info("Current list of seed nodes:")
+	if len(node.seedNodes) == 0 {
+		logger.Info("No seed nodes available")
+	} else {
+		counter := 1
+		for seed := range node.seedNodes {
+			logger.InfoF("%d: %s", counter, seed)
+			counter++
 		}
 	}
 }
