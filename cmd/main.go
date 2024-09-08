@@ -1,9 +1,12 @@
 package main
 
 import (
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/robfig/config"
 
@@ -62,6 +65,11 @@ func NewServer() *Server {
 		logger.FatalF("Failed to read cache_size from config: %v", err)
 	}
 
+	degree, parseErr := configFile.Int("gossip", "degree")
+	if parseErr != nil {
+		logger.FatalF("Failed to read cache_size from config: %v", err)
+	}
+
 	announceMsgChan := make(chan enum.AnnounceMsg)
 	notificationMsgChan := make(chan enum.NotificationMsg)
 
@@ -69,7 +77,7 @@ func NewServer() *Server {
 
 	apiServer := api.NewServer(apiAddress, announceMsgChan, notificationMsgChan, datatypeMapper)
 
-	p2pServer := p2p.NewGossipNode(p2pAddress, []string{}, announceMsgChan, notificationMsgChan, datatypeMapper, bootstrapperAddress, cacheSize)
+	p2pServer := p2p.NewGossipNode(p2pAddress, []string{}, []string{}, false, announceMsgChan, notificationMsgChan, datatypeMapper, bootstrapperAddress, cacheSize, degree)
 	return &Server{apiServer: apiServer, p2pServer: p2pServer, announceMsgChan: announceMsgChan, datatypeMapper: datatypeMapper}
 
 }
@@ -86,5 +94,18 @@ func (s *Server) Start() {
 
 func main() {
 	server := NewServer()
-	server.Start()
+	logger := logging.NewCustomLogger()
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+
+	go server.Start()
+
+	<-signalChan
+	logger.Info("Received termination signal. Initiating shutdown...")
+
+	server.p2pServer.ShutDown()
+
+	logger.Info("Server shutdown completed.")
+	os.Exit(0)
 }
