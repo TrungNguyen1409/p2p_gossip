@@ -12,7 +12,6 @@ services:
 
   node:
     image: my-node-image-new-config
-    #what if change the name of container / host in the config.ini instead of localhost:9090 -> node1:9090
     container_name: node
 
     networks:

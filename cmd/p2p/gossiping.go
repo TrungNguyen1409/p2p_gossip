@@ -22,7 +22,7 @@ func (node *GossipNode) gossip(msg *pb.GossipMessage, logger *logging.Logger) {
 
 	logger.DebugF(string(msg.Ttl))
 	if msg.Ttl < 1 {
-		logger.Info("Message TTL expired, not gossiping.")
+		logger.Info("Message TTL expired, stop gossiping.")
 		return
 	}
 
@@ -45,7 +45,7 @@ func (node *GossipNode) gossip(msg *pb.GossipMessage, logger *logging.Logger) {
 
 	for i := 0; i < fanout; i++ {
 		peer := peerList[i]
-		logger.InfoF("gossiping with: %s", peer)
+		logger.InfoF("Gossiping with: %s", peer)
 		go func(peer string) {
 			if err := send(peer, msg); err != nil {
 				logger.ErrorF("Failed to send message to %s: %v", peer, err)
@@ -176,7 +176,7 @@ func (node *GossipNode) updateByPeerListResponse(receivedPeers []string, logger 
 			node.peers[peer] = struct{}{}
 			logger.InfoF("Added new peer: %s", peer)
 		} else {
-			logger.InfoF("peer list already contains peer: %s", peer)
+			logger.InfoF("Peer list already contains peer: %s", peer)
 
 		}
 	}
@@ -196,7 +196,7 @@ func (node *GossipNode) removeNodeByExceedDegree(logger *logging.Logger) {
 
 func (node *GossipNode) announceNewPeer() {
 	logger := logging.NewCustomLogger()
-	logger.InfoF("Announcing new peer: %s", node.p2pAddress)
+	logger.InfoF("Peer announces Join: %s", node.p2pAddress)
 
 	announceMsg := &pb.GossipMessage{
 		MessageId: uint32(generate16BitRandomInteger()),
@@ -224,7 +224,7 @@ func (node *GossipNode) updateByPeerJoin(peerAddress string, logger *logging.Log
 
 func (node *GossipNode) announceLeave() {
 	logger := logging.NewCustomLogger()
-	logger.InfoF("Announcing that peer %s is leaving", node.p2pAddress)
+	logger.InfoF("Peer %s sends announceLeave", node.p2pAddress)
 
 	leaveMsg := &pb.GossipMessage{
 		MessageId: uint32(generate16BitRandomInteger()),
