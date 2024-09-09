@@ -54,12 +54,12 @@ func (am *DatatypeMapper) CheckNotify(msgID uint16, datatype enum.Datatype) bool
 	for addr, datatypes := range am.data {
 		fmt.Printf("Checking address: %s with datatypes: %v\n", addr.String(), datatypes)
 		if _, exists := datatypes[datatype]; exists {
-			fmt.Printf("Datatype '%d' (GossipNotify) exists in the map for address %s.\n", datatype, addr.String())
+			//fmt.Printf("Datatype '%d' (GossipNotify) exists in the map for address %s.\n", datatype, addr.String())
 			return true
 		}
 	}
 
-	fmt.Printf("Datatype '%d' (GossipNotify) does not exist in any address in the map.\n", datatype)
+	//fmt.Printf("Datatype '%d' (GossipNotify) does not exist in any address in the map.\n", datatype)
 	return false
 }
 

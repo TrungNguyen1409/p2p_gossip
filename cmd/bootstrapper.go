@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"gitlab.lrz.de/netintum/teaching/p2psec_projects_2024/Gossip-7/enum"
 	"log"
 	"math/rand"
@@ -34,7 +33,6 @@ func NewBootstrapper() *Bootstrapper {
 
 func (b *Bootstrapper) RegisterPeer(w http.ResponseWriter, r *http.Request) {
 	logger := logging.NewCustomLogger()
-	logger.Debug("Peer starts Registering...")
 
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Unable to parse form", http.StatusBadRequest)
@@ -51,7 +49,7 @@ func (b *Bootstrapper) RegisterPeer(w http.ResponseWriter, r *http.Request) {
 
 	// Primitive logic to add peer to seednode list
 	if len(b.seedNodes) < b.seedNodeLimit && !contains(b.seedNodes, peer) {
-		fmt.Println("register as seed")
+		logger.InfoF("Peer %s Registered as seed", peer)
 		b.seedNodes = append(b.seedNodes, peer)
 	}
 

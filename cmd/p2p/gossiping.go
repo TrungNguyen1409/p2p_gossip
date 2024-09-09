@@ -45,12 +45,12 @@ func (node *GossipNode) gossip(msg *pb.GossipMessage, logger *logging.Logger) {
 
 	for i := 0; i < fanout; i++ {
 		peer := peerList[i]
-		logger.InfoF("Gossiping with: %s", peer)
+		//logger.InfoF("Gossiping with: %s", peer)
 		go func(peer string) {
 			if err := send(peer, msg); err != nil {
 				logger.ErrorF("Failed to send message to %s: %v", peer, err)
 			} else {
-				logger.InfoF("Message sent to %s", peer)
+				//logger.InfoF("Message sent to %s", peer)
 			}
 		}(peer)
 	}

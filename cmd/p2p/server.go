@@ -219,7 +219,7 @@ func (node *GossipNode) HandleConnection(conn net.Conn, logger *logging.Logger) 
 func (node *GossipNode) handleGossipMessage(msg *pb.GossipMessage, logger *logging.Logger) {
 
 	if node.isMessageCached(strconv.Itoa(int(msg.MessageId))) {
-		logger.InfoF("Duplicated gossip message, ID: %s", strconv.Itoa(int(msg.MessageId)))
+		//logger.InfoF("Duplicated gossip message, ID: %s", strconv.Itoa(int(msg.MessageId)))
 		return
 	} else {
 		node.addToCache(strconv.Itoa(int(msg.MessageId)))
