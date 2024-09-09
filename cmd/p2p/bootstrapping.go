@@ -157,9 +157,9 @@ func (node *GossipNode) PrintPeerLists() {
 	defer node.peersMutex.RUnlock()
 
 	// Print peers list
-	logger.Info("Current list of peers:")
+	logger.Info("Node's network view:")
 	if len(node.peers) == 0 {
-		logger.Info("No peers available")
+		logger.Info("Node's network view: empty")
 	} else {
 		counter := 1
 		for peer := range node.peers {
@@ -169,9 +169,9 @@ func (node *GossipNode) PrintPeerLists() {
 	}
 
 	// Print seedNodes list
-	logger.Info("Current list of seed nodes:")
+	logger.Info("Node's seed nodes view:")
 	if len(node.seedNodes) == 0 {
-		logger.Info("No seed nodes available")
+		logger.Info("Node's seed nodes view: empty")
 	} else {
 		counter := 1
 		for seed := range node.seedNodes {

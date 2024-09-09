@@ -217,7 +217,7 @@ func (node *GossipNode) updateByPeerJoin(peerAddress string, logger *logging.Log
 	} else {
 		logger.InfoF("Peer %s already known", peerAddress)
 	}
-
+	node.PrintPeerLists()
 	node.removeNodeByExceedDegree(logger)
 	node.peersMutex.Unlock()
 }

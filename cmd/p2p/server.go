@@ -102,11 +102,12 @@ func (node *GossipNode) Start() {
 		defer wg.Done()
 		node.periodicPeerListRequest()
 	}()
-
-	go func() {
-		defer wg.Done()
-		node.periodicBootstrapping()
-	}()
+	/*
+		go func() {
+			defer wg.Done()
+			node.periodicBootstrapping()
+		}()
+	*/
 
 	go func() {
 		defer wg.Done()
